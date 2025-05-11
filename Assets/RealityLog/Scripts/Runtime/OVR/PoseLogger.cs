@@ -46,21 +46,37 @@ namespace RealityLog.OVR
         {
             try
             {
-                writer?.Dispose();
+                StopLogging();
                 var filePath = Path.Combine(Application.persistentDataPath, DirectoryName, fileName);
                 writer = new CsvWriter(filePath, HEADER);
             }
             catch (Exception ex)
             {
-                Debug.LogError($"Failed to create CsvWriter: {ex.Message}");
+                Debug.LogError($"[{Constants.LOG_TAG}] Failed to create CsvWriter: {ex.Message}");
                 writer = null;
             }
+        }
+
+        public void StopLogging()
+        {
+            try
+            {
+                writer?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[{Constants.LOG_TAG}] Failed to dispose CsvWriter: {ex.Message}");
+            }
+
+            writer = null;
         }
 
         private void Start()
         {
             baseOvrTimeSec = OVRPlugin.GetTimeInSeconds();
             baseUnixTimeMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+            Debug.Log($"[Time Log] Base OVR Time (sec): {baseOvrTimeSec}, Base Unix Time (ms): {baseUnixTimeMs}");
 
             if (startLoggingOnStart)
             {
