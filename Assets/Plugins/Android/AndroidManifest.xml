@@ -15,6 +15,9 @@
     <meta-data android:name="com.oculus.ossplash.background" android:value="black" />
     <meta-data android:name="com.oculus.telemetry.project_guid" android:value="ebef54c5-ad9a-44ba-8c97-4a460ab5ce0f" />
     <meta-data android:name="com.oculus.supportedDevices" android:value="quest|quest2|questpro|quest3|quest3s" />
+    <meta-data
+        android:name="com.samsung.android.vr.application.mode"
+        android:value="vr_only"/>
   </application>
   <uses-feature android:name="android.hardware.vr.headtracking" android:version="1" android:required="true" />
 </manifest>

@@ -20,22 +20,16 @@ namespace RealityLog.Camera
         public AndroidJavaObject? SessionManagerJavaInstance { get; private set; }
 
 # if UNITY_ANDROID
-        private void Awake()
-        {
-            cameraPermissionManager.CameraManagerInstantiated += OnCameraManagerInstantiated;
-        }
-
-        private void OnDestroy()
-        {
-            DestroyInstance();            
-            cameraPermissionManager.CameraManagerInstantiated -= OnCameraManagerInstantiated;
-        }
-
         private void OnEnable()
         {
             var cameraManagerJavaInstance = cameraPermissionManager.CameraManagerJavaInstance;
 
-            if (cameraManagerJavaInstance != null)
+            if (cameraManagerJavaInstance == null)
+            {
+                Debug.Log($"[{Constants.LOG_TAG}] CameraManager not instantiated. Waiting for initialization...");
+                cameraPermissionManager.CameraManagerInstantiated += OnCameraManagerInstantiated;
+            }
+            else
             {
                 Instantiate(cameraManagerJavaInstance);
             }
@@ -44,14 +38,13 @@ namespace RealityLog.Camera
         private void OnDisable()
         {
             DestroyInstance();
+            cameraPermissionManager.CameraManagerInstantiated -= OnCameraManagerInstantiated;
         }
 
         private void OnCameraManagerInstantiated(AndroidJavaObject cameraManagerJavaInstance)
         {
-            if (enabled)
-            {
-                Instantiate(cameraManagerJavaInstance);
-            }
+            Debug.Log($"[{Constants.LOG_TAG}] OnCameraManagerInstantiated");
+            Instantiate(cameraManagerJavaInstance);
         }
 
         private void Instantiate(AndroidJavaObject cameraManagerJavaInstance)
