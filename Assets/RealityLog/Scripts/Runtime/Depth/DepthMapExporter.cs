@@ -22,7 +22,8 @@ namespace RealityLog.Depth
         [HideInInspector]
         [SerializeField] private ComputeShader copyDepthMapShader = default!;
         [SerializeField] private string directoryName = "";
-        [SerializeField] private string depthMapDirectoryName = "depth";
+        [SerializeField] private string leftDepthMapDirectoryName = "left_depth";
+        [SerializeField] private string rightDepthMapDirectoryName = "right_depth";
         [SerializeField] private string leftDepthDescFileName = "left_depth_descriptors.csv";
         [SerializeField] private string rightDepthDescFileName = "right_depth_descriptors.csv";
 
@@ -54,7 +55,8 @@ namespace RealityLog.Depth
             leftDepthCsvWriter = new(Path.Join(Application.persistentDataPath, DirectoryName, leftDepthDescFileName), descriptorHeader);
             rightDepthCsvWriter = new(Path.Join(Application.persistentDataPath, DirectoryName, rightDepthDescFileName), descriptorHeader);
 
-            Directory.CreateDirectory(Path.Join(Application.persistentDataPath, DirectoryName, depthMapDirectoryName));
+            Directory.CreateDirectory(Path.Join(Application.persistentDataPath, DirectoryName, leftDepthMapDirectoryName));
+            Directory.CreateDirectory(Path.Join(Application.persistentDataPath, DirectoryName, rightDepthMapDirectoryName));
 
             if (hasScenePermission)
             {
@@ -139,8 +141,8 @@ namespace RealityLog.Depth
 
                 var unixTime = ConvertTimestampNsToUnixTimeMs(frameDescriptors[0].timestampNs);
 
-                var leftDepthFilePath = Path.Join(Application.persistentDataPath, DirectoryName, $"{depthMapDirectoryName}/left_{unixTime}.raw");
-                var rightDepthFilePath = Path.Join(Application.persistentDataPath, DirectoryName, $"{depthMapDirectoryName}/right_{unixTime}.raw");
+                var leftDepthFilePath = Path.Join(Application.persistentDataPath, DirectoryName, $"{leftDepthMapDirectoryName}/{unixTime}.raw");
+                var rightDepthFilePath = Path.Join(Application.persistentDataPath, DirectoryName, $"{rightDepthMapDirectoryName}/{unixTime}.raw");
 
                 renderTextureExporter.Export(renderTexture, leftDepthFilePath, rightDepthFilePath);
 
