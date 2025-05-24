@@ -1,0 +1,21 @@
+{
+    "name": "RealityLog.Depth",
+    "rootNamespace": "RealityLog.Depth",
+    "references": [
+        "GUID:f64c9ebcd7899c3448a08dc9f9ddbe30",
+        "GUID:d0444c2808025b94fa59a06393315ebd",
+        "GUID:92703082f92b41ba80f0d6912de66115",
+        "GUID:272a8fb436017ef46bc333f117faba38",
+        "GUID:e40ba710768534012815d3193fa296cb",
+        "GUID:4847341ff46394e83bb78fbd0652937e"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

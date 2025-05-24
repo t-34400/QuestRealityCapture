@@ -130,7 +130,7 @@ GameObject:
   - component: {fileID: 138327925}
   - component: {fileID: 138327926}
   m_Layer: 0
-  m_Name: EnvironmentDepthManager
+  m_Name: DepthMapExporter
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -144,12 +144,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 138327924}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: -0.2, z: 0.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1827463991}
+  m_Father: {fileID: 1104910058}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &138327926
 MonoBehaviour:
@@ -160,14 +160,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 138327924}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 71a155ece80369d4e99bdaf5e59169b5, type: 3}
+  m_Script: {fileID: 11500000, guid: b10078395b55eff49986ccd5a34b66ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _occlusionShadersMode: 0
-  _removeHands: 0
-  CustomTrackingSpace: {fileID: 0}
-  <MaskMeshFilters>k__BackingField: []
-  _cameraRig: {fileID: 2113190468}
+  copyDepthMapShader: {fileID: 7200000, guid: 3d7584575e79f354a88176c1669bfe59, type: 3}
+  directoryName: test
+  depthMapDirectoryName: depth
+  leftDepthFileName: left_depth_descriptors.csv
+  rightDepthFileName: right_depth_descriptors.csv
 --- !u!1 &162001329
 GameObject:
   m_ObjectHideFlags: 0
@@ -1462,6 +1462,7 @@ Transform:
   - {fileID: 1857532850}
   - {fileID: 396799049}
   - {fileID: 1942360063}
+  - {fileID: 138327925}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1166108974
@@ -1682,38 +1683,6 @@ MonoBehaviour:
   directoryName: data
   startLoggingOnStart: 0
   trackingSpace: {fileID: 0}
---- !u!1 &1827463990
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1827463991}
-  m_Layer: 0
-  m_Name: Depth
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1827463991
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1827463990}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.2, z: 0.5}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 138327925}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1857532849
 GameObject:
   m_ObjectHideFlags: 0
@@ -1813,6 +1782,18 @@ MonoBehaviour:
       - m_Target: {fileID: 800648183}
         m_TargetAssemblyTypeName: RealityLog.Camera.ImageReaderSurfaceProvider, RealityLog
         m_MethodName: set_DataDirectoryName
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+      - m_Target: {fileID: 138327926}
+        m_TargetAssemblyTypeName: RealityLog.Depth.DepthMapExporter, RealityLog.Depth
+        m_MethodName: set_DirectoryName
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -2281,6 +2262,18 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 1
         m_CallState: 2
+      - m_Target: {fileID: 138327926}
+        m_TargetAssemblyTypeName: RealityLog.Depth.DepthMapExporter, RealityLog.Depth
+        m_MethodName: StartExport
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 1
+        m_CallState: 2
   deactivated:
     m_PersistentCalls:
       m_Calls:
@@ -2344,6 +2337,18 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
+      - m_Target: {fileID: 138327926}
+        m_TargetAssemblyTypeName: RealityLog.Depth.DepthMapExporter, RealityLog.Depth
+        m_MethodName: StopExport
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &2049423540
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2373,17 +2378,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &2113190468 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 11400010, guid: 126d619cf4daa52469682f85c1378b4a, type: 3}
-  m_PrefabInstance: {fileID: 678640232}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2113190469}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: df9f338034892c44ebb62d97894772f1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &2113190469 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 100004, guid: 126d619cf4daa52469682f85c1378b4a, type: 3}
@@ -2495,5 +2489,4 @@ SceneRoots:
   - {fileID: 678640232}
   - {fileID: 1104910058}
   - {fileID: 1186443526}
-  - {fileID: 1827463991}
   - {fileID: 162001332}

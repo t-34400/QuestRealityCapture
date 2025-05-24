@@ -1,0 +1,25 @@
+#pragma kernel CopyRT
+
+Texture2DArray<float> InputTex;
+uint _Width;
+uint _Height;
+
+RWStructuredBuffer<float> LeftEyeDepth;
+RWStructuredBuffer<float> RightEyeDepth;
+
+[numthreads(8, 8, 1)]
+void CopyRT(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _Width || id.y >= _Height) return;
+
+    uint u = id.x;
+    uint v = _Height - id.y - 1;
+
+    // Left eye (slice = 0)
+    float depthLeft = InputTex[float3(u, v, 0)];
+    LeftEyeDepth[id.x + id.y * _Width] = depthLeft;
+
+    // Right eye (slice = 1)
+    float depthRight = InputTex[float3(u, v, 1)];
+    RightEyeDepth[id.x + id.y * _Width] = depthRight;
+}
