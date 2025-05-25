@@ -4,7 +4,7 @@
   <img src="docs/overview.png" alt="QuestRealityCapture" width="320"/>
 </p>
 
-**Capture and store real-world data on Meta Quest 3, including HMD/controller poses, stereo passthrough images, camera metadata, and depth maps.**
+**Capture and store real-world data on Meta Quest 3 or 3s, including HMD/controller poses, stereo passthrough images, camera metadata, and depth maps.**
 
 ---
 
@@ -77,16 +77,6 @@ Example structure:
   unix_time,ovr_timestamp,pos_x,pos_y,pos_z,rot_x,rot_y,rot_z,rot_w
   ```
 
-### Depth Descriptor CSV
-
-* Format:
-
-  ```
-  timestamp_ms,ovr_timestamp,create_pose_location_x, ..., create_pose_rotation_w,
-  fov_left_angle_tangent,fov_right_angle_tangent,fov_top_angle_tangent,fov_down_angle_tangent,
-  near_z,far_z,width,height
-  ```
-
 ### Camera Characteristics (JSON)
 
 * Obtained via Android Camera2 API
@@ -97,11 +87,21 @@ Example structure:
 * Includes resolution, format (e.g., `YUV_420_888`), per-plane buffer info
 * Contains baseMonoTimeNs and baseUnixTimeMs for timestamp alignment
 
-### 🎥 Passthrough Camera (Raw YUV)
+### Passthrough Camera (Raw YUV)
 - Raw YUV frames are stored as `.yuv` files under `left_camera_raw/` and `right_camera_raw/`.
 - Image format and buffer information are provided in the accompanying `*_camera_image_format.json` files.
 
 Instructions for converting `YUV_420_888` images to RGB will be documented later.
+
+### Depth Map Descriptor CSV
+
+* Format:
+
+  ```
+  timestamp_ms,ovr_timestamp,create_pose_location_x, ..., create_pose_rotation_w,
+  fov_left_angle_tangent,fov_right_angle_tangent,fov_top_angle_tangent,fov_down_angle_tangent,
+  near_z,far_z,width,height
+  ```
 
 ### Depth Map
 
