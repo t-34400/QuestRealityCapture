@@ -124,7 +124,7 @@ namespace RealityLog.OVR
             writer.EnqueueRow(
                 ConvertOvrSecToUnixTimeMs(timestamp), timestamp,
                 position.x, position.y, position.z,
-                orientation.x, orientation.y, orientation.z, orientation.z
+                orientation.x, orientation.y, orientation.z, orientation.w
             );
         }
 
