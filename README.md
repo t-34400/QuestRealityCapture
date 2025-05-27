@@ -29,13 +29,13 @@
 Each time you start recording, a new folder is created under:
 
 ```
-/sdcard/Android/data/com.t34400.QuestRealityCapture/
+/sdcard/Android/data/com.t34400.QuestRealityCapture/files
 ```
 
 Example structure:
 
 ```
-/sdcard/Android/data/com.t34400.QuestRealityCapture/
+/sdcard/Android/data/com.t34400.QuestRealityCapture/files
 └── YYYYMMDD_hhmmss/
     ├── hmd_poses.csv
     ├── left_controller_poses.csv
