@@ -91,7 +91,7 @@ Example structure:
 - Raw YUV frames are stored as `.yuv` files under `left_camera_raw/` and `right_camera_raw/`.
 - Image format and buffer information are provided in the accompanying `*_camera_image_format.json` files.
 
-Instructions for converting `YUV_420_888` images to RGB will be documented later.
+To convert passthrough YUV (YUV_420_888) images to RGB for visualization or reconstruction, see: [Meta Quest 3D Reconstruction](https://github.com/t-34400/metaquest-3d-reconstrucion)
 
 ### Depth Map Descriptor CSV
 
@@ -107,7 +107,9 @@ Instructions for converting `YUV_420_888` images to RGB will be documented later
 
 * Raw `.float32` depth images (1D float per pixel)
 
-Conversion to 3D coordinates will be documented later.
+To convert raw depth maps into linear or 3D form, refer to the companion project: [Meta Quest 3D Reconstruction](https://github.com/t-34400/metaquest-3d-reconstrucion)
+
+折りたたむ
 
 ---
 
