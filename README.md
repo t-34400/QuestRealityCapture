@@ -109,8 +109,6 @@ To convert passthrough YUV (YUV_420_888) images to RGB for visualization or reco
 
 To convert raw depth maps into linear or 3D form, refer to the companion project: [Meta Quest 3D Reconstruction](https://github.com/t-34400/metaquest-3d-reconstrucion)
 
-折りたたむ
-
 ---
 
 ## 🚀 Installation & Usage
