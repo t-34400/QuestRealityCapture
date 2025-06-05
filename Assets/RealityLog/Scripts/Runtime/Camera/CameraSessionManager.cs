@@ -10,12 +10,14 @@ namespace RealityLog.Camera
         private const string CAMEAR_SESSION_MANAGER_CLASS_NAME = "com.t34400.questcamera.core.CameraSessionManager";
 
         private const string REGISTER_SURFACE_PROVIDER_METHOD_NAME = "registerSurfaceProvider";
+        private const string SET_CAPTURE_TEMPLATE_METHOD_NAME = "setCaptureTemplateFromString";
         private const string OPEN_CAMERA_METHOD_NAME = "openCamera";
         private const string CLOSE_METHOD_NAME = "close";
 
         [SerializeField] private CameraPermissionManager cameraPermissionManager = default!;
         [SerializeField] private List<SurfaceProviderBase> surfaceProviders = new();
         [SerializeField] private CameraPosition cameraPosition = CameraPosition.Left;
+        [SerializeField] private CameraUseCase useCase = CameraUseCase.STILL_CAPTURE;
 
         public AndroidJavaObject? SessionManagerJavaInstance { get; private set; }
 
@@ -59,11 +61,11 @@ namespace RealityLog.Camera
             }
 
             var metaData = cameraPosition switch
-                {
-                    CameraPosition.Left => cameraPermissionManager.LeftCameraMetaData,
-                    CameraPosition.Right => cameraPermissionManager.RightCameraMetaData,
-                    _ => null
-                };
+            {
+                CameraPosition.Left => cameraPermissionManager.LeftCameraMetaData,
+                CameraPosition.Right => cameraPermissionManager.RightCameraMetaData,
+                _ => null
+            };
 
             if (metaData == null)
             {
@@ -86,6 +88,7 @@ namespace RealityLog.Camera
 
                 SessionManagerJavaInstance.Call(REGISTER_SURFACE_PROVIDER_METHOD_NAME, providerJavaInstance);
             }
+            SessionManagerJavaInstance.Call(SET_CAPTURE_TEMPLATE_METHOD_NAME, useCase.ToString());
 
             using (AndroidJavaClass unityPlayerClazz = new AndroidJavaClass(Constants.UNITY_PLAYER_CLASS_NAME))
             using (AndroidJavaObject currentActivity = unityPlayerClazz.GetStatic<AndroidJavaObject>(Constants.UNITY_PLAYER_CURRENT_ACTIVITY_VARIABLE_NAME))
@@ -98,7 +101,7 @@ namespace RealityLog.Camera
                 );
             }
 
-            Debug.Log($"[{Constants.LOG_TAG}] Camera Session ID={metaData.cameraId} started.");            
+            Debug.Log($"[{Constants.LOG_TAG}] Camera Session ID={metaData.cameraId} started.");
         }
 
         private void DestroyInstance()
@@ -113,6 +116,16 @@ namespace RealityLog.Camera
         {
             Left,
             Right
+        }
+
+        enum CameraUseCase
+        {
+            PREVIEW,
+            STILL_CAPTURE,
+            RECORD,
+            VIDEO_SNAPSHOT,
+            ZERO_SHUTTER_LAG,
+            MANUAL,
         }
     }
 }
