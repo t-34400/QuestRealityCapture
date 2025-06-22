@@ -47,6 +47,7 @@ namespace RealityLog.Camera
                 $"    - availableFocalLengths: {FormatArray(sensor.availableFocalLengths)}\n" +
                 $"    - physicalSize: ({sensor.physicalSize.width}, {sensor.physicalSize.height})\n" +
                 $"    - pixelArraySize: ({sensor.pixelArraySize.width}, {sensor.pixelArraySize.height})\n" +
+                $"    - preCorrectionActiveArraySize: (left: {sensor.preCorrectionActiveArraySize.left}, top: {sensor.preCorrectionActiveArraySize.top}, right: {sensor.preCorrectionActiveArraySize.right}, bottom: {sensor.preCorrectionActiveArraySize.bottom})\n" +
                 $"    - activeArraySize: (left: {sensor.activeArraySize.left}, top: {sensor.activeArraySize.top}, right: {sensor.activeArraySize.right}, bottom: {sensor.activeArraySize.bottom})\n" +
                 $"    - timestampSource: {sensor.timestampSource}";
         }
@@ -99,6 +100,7 @@ namespace RealityLog.Camera
         public float[] availableFocalLengths = new float[0];
         public FloatSize physicalSize = default!;
         public IntSize pixelArraySize = default!;
+        public IntRect preCorrectionActiveArraySize = default!;
         public IntRect activeArraySize = default!;
         public string timestampSource = string.Empty;
     }
