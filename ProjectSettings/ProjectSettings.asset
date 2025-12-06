@@ -144,6 +144,9 @@ PlayerSettings:
   preloadedAssets:
   - {fileID: 11400000, guid: bfc39a8cc46a78446b12034ce61857c9, type: 2}
   - {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  - {fileID: 11400000, guid: 5ac1733ce4a7204438ca7d6cd46b95c9, type: 2}
+  - {fileID: -5691834085964366799, guid: c92452c154fdb1f4fbe25ad24de6ba51, type: 2}
+  - {fileID: 3478250952125451662, guid: 64799ef269c4e18438889eb62e83b138, type: 2}
   metroInputSource: 0
   wsaTransparentSwapchain: 0
   m_HolographicPauseOnTrackingLoss: 1
@@ -166,7 +169,7 @@ PlayerSettings:
   androidMinAspectRatio: 1
   applicationIdentifier:
     Android: com.t34400.QuestRealityCapture
-    Standalone: com.Unity-Technologies.com.unity.template.urp-blank
+    Standalone: com.t34400.QuestRealityCapture
     iPhone: com.Unity-Technologies.com.unity.template.urp-blank
   buildNumber:
     Standalone: 0
@@ -953,7 +956,7 @@ PlayerSettings:
   qnxGraphicConfPath: 
   apiCompatibilityLevel: 6
   captureStartupLogs: {}
-  activeInputHandler: 2
+  activeInputHandler: 0
   windowsGamepadBackendHint: 0
   cloudProjectId: 
   framebufferDepthMemorylessMode: 0
