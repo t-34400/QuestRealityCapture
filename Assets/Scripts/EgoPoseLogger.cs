@@ -1,9 +1,8 @@
-using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using UnityEngine;
 
-public class RoboticsLogger : MonoBehaviour
+public class EgoPoseLogger : MonoBehaviour
 {
     [Header("Hand Tracking Refs")]
     public OVRSkeleton leftSkeleton;
@@ -14,24 +13,33 @@ public class RoboticsLogger : MonoBehaviour
     [Header("Body Tracking Ref")]
     public OVRBody bodyTracker; // Drag the object with OVRBody script here
 
+    [Header("Output Settings")]
+    [SerializeField] private string directoryName = "";
+
     private StreamWriter writerLeft;
     private StreamWriter writerRight;
     private StreamWriter writerBody;
     private bool isRecording = false;
 
-    void Start()
+    public string DirectoryName
     {
-        // 1. Create a unique folder for this session
-        string timestamp = System.DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        string folderPath = Path.Combine(Application.persistentDataPath, "RoboticsLogs_" + timestamp);
+        get => directoryName;
+        set => directoryName = value;
+    }
+
+    public void StartLogging()
+    {
+        StopLogging();
+
+        string folderPath = Path.Combine(Application.persistentDataPath, directoryName);
         Directory.CreateDirectory(folderPath);
 
-        // 2. Initialize CSV writers (64kb buffer)
-        writerLeft = new StreamWriter(Path.Combine(folderPath, "left_hand_robotics.csv"), false, Encoding.UTF8, 65536);
-        writerRight = new StreamWriter(Path.Combine(folderPath, "right_hand_robotics.csv"), false, Encoding.UTF8, 65536);
-        writerBody = new StreamWriter(Path.Combine(folderPath, "body_robotics.csv"), false, Encoding.UTF8, 65536);
+        // Initialize CSV writers (64kb buffer)
+        writerLeft = new StreamWriter(Path.Combine(folderPath, "left_hand_pose.csv"), false, Encoding.UTF8, 65536);
+        writerRight = new StreamWriter(Path.Combine(folderPath, "right_hand_pose.csv"), false, Encoding.UTF8, 65536);
+        writerBody = new StreamWriter(Path.Combine(folderPath, "body_pose.csv"), false, Encoding.UTF8, 65536);
 
-        // 3. Write Headers
+        // Write Headers
         string handHeader = "UnixTime,UnityTime,PinchStrength,IsGrabbing," + BuildHandHeader();
         writerLeft.WriteLine(handHeader);
         writerRight.WriteLine(handHeader);
@@ -40,6 +48,17 @@ public class RoboticsLogger : MonoBehaviour
         writerBody.WriteLine(bodyHeader);
 
         isRecording = true;
+    }
+
+    public void StopLogging()
+    {
+        isRecording = false;
+        writerLeft?.Close();
+        writerRight?.Close();
+        writerBody?.Close();
+        writerLeft = null;
+        writerRight = null;
+        writerBody = null;
     }
 
     void Update()
@@ -143,8 +162,6 @@ public class RoboticsLogger : MonoBehaviour
 
     void OnDestroy()
     {
-        writerLeft?.Close();
-        writerRight?.Close();
-        writerBody?.Close();
+        StopLogging();
     }
 }

@@ -1,16 +1,18 @@
-# QuestRealityCapture
+# QuestEgoCapture
 
 <p align="center">
-  <img src="docs/overview.png" alt="QuestRealityCapture" width="320"/>
+  <img src="docs/overview.png" alt="QuestEgoCapture" width="320"/>
 </p>
 
-**Capture and store real-world data on Meta Quest 3 or 3s, including HMD/controller poses, stereo passthrough images, camera metadata, and depth maps.**
+**Capture egocentric data for robot learning on Meta Quest 3 or 3s, including body/hand poses, HMD/controller poses, stereo passthrough images, camera metadata, and depth maps.**
+
+> **Note:** This is a fork of [QuestRealityCapture](https://github.com/t-34400/QuestRealityCapture) extended for **human egocentric robot training data collection**. We added full body and hand skeleton tracking to capture human demonstrations for imitation learning and behavioral cloning.
 
 ---
 
 ## 📖 Overview
 
-`QuestRealityCapture` is a Unity-based data logging app for Meta Quest 3. It captures and stores synchronized real-world information such as headset and controller poses, images from both passthrough cameras, camera characteristics, and depth data, organized per session.
+`QuestEgoCapture` is a Unity-based data logging app for Meta Quest 3. It captures and stores synchronized real-world information such as headset and controller poses, images from both passthrough cameras, camera characteristics, and depth data, organized per session.
 
 For **data parsing, visualization, and reconstruction**, refer to the companion project:
 **[Meta Quest 3D Reconstruction](https://github.com/t-34400/metaquest-3d-reconstrucion)**
@@ -31,6 +33,12 @@ This includes:
 * Logs **Camera2 API characteristics** and image format information
 * Saves **depth maps** and **depth descriptors** from both cameras
 * Automatically organizes logs into timestamped folders on internal storage
+
+### Added in this Fork
+
+* **Full body skeleton tracking** (85 joints via `OVRBody`) - captures torso, arms, legs, and hands
+* **Hand skeleton tracking** (24 bones per hand via `OVRSkeleton`) - world-space hand poses
+* **Pinch/grab detection** - continuous pinch strength + binary grab flag per hand
 
 ---
 
@@ -75,6 +83,10 @@ Example structure:
     ├── left_controller_poses.csv
     ├── right_controller_poses.csv
     │
+    ├── body_pose.csv              # [NEW] Full body skeleton (85 joints)
+    ├── left_hand_pose.csv         # [NEW] Left hand skeleton + pinch/grab
+    ├── right_hand_pose.csv        # [NEW] Right hand skeleton + pinch/grab
+    │
     ├── left_camera_raw/
     │   ├── <unixtimeMs>.yuv
     │   └── ...
@@ -110,6 +122,32 @@ Example structure:
   ```
   unix_time,ovr_timestamp,pos_x,pos_y,pos_z,rot_x,rot_y,rot_z,rot_w
   ```
+
+### Body Pose CSV (New)
+
+* File: `body_pose.csv`
+* Logs 85 body joints from `OVRBody` at each frame
+* Format:
+
+  ```
+  UnixTime,UnityTime,BodyJoint0_Px,BodyJoint0_Py,BodyJoint0_Pz,BodyJoint0_Rx,BodyJoint0_Ry,BodyJoint0_Rz,BodyJoint0_Rw,...,BodyJoint84_Rw
+  ```
+
+* Joint indices include: root, spine, chest, neck, head, shoulders, arms, hands/fingers (indices 18-43 left hand, 44-69 right hand), legs, and feet
+* Positions are body-relative; invalid joints are logged as `0,0,0,0,0,0,0`
+
+### Hand Pose CSV (New)
+
+* Files: `left_hand_pose.csv`, `right_hand_pose.csv`
+* Logs 24 hand bones from `OVRSkeleton` in world space, plus pinch/grab state
+* Format:
+
+  ```
+  UnixTime,UnityTime,PinchStrength,IsGrabbing,HandBone0_Px,HandBone0_Py,HandBone0_Pz,HandBone0_Rx,HandBone0_Ry,HandBone0_Rz,HandBone0_Rw,...,HandBone23_Rw
+  ```
+
+* `PinchStrength`: 0.0-1.0 continuous value from index finger pinch
+* `IsGrabbing`: 1 if `PinchStrength > 0.8`, else 0
 
 ### Camera Characteristics (JSON)
 
@@ -165,8 +203,9 @@ Required permissions (camera/scene access) are requested automatically at runtim
 
 * Unity **6000.0.30f1**
 * Meta OpenXR SDK
+* Meta XR SDK v81 (for body/hand tracking)
 * Device: Meta Quest 3 or 3s only
-* Approx. recording frame rate: \~25 FPS (camera & depth)
+* Approx. recording frame rate: \~25 FPS (camera & depth), body/hand poses logged every frame
 
 ---
 
