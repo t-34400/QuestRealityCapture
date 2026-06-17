@@ -57,22 +57,26 @@ The native plugin may report permission-related failures, but must not request p
 
 The native plugin exposes a C ABI for Unity interop.
 
-Current exported functions are:
+Current exported functions are session-handle based:
 
 ```c
-QrcCamera_Initialize(width, height, frameDirectory, formatInfoFilePath);
-QrcCamera_SetSaveFrameRate(fps);
-QrcCamera_Open(position);
-QrcCamera_OpenById(cameraId);
-QrcCamera_StartRecording();
-QrcCamera_StopRecording();
-QrcCamera_Close();
-QrcCamera_GetStats(&stats);
-QrcCamera_GetLastError();
-QrcCamera_GetLastOpenedCameraId();
+QrcCamera_CreateSession(&handle);
+QrcCamera_DestroySession(handle);
+QrcCamera_InitializeSession(handle, width, height, frameDirectory, formatInfoFilePath);
+QrcCamera_SetSessionSaveFrameRate(handle, fps);
+QrcCamera_OpenSession(handle, position);
+QrcCamera_OpenSessionById(handle, cameraId);
+QrcCamera_StartSessionRecording(handle);
+QrcCamera_StopSessionRecording(handle);
+QrcCamera_CloseSession(handle);
+QrcCamera_GetSessionStats(handle, &stats);
+QrcCamera_GetSessionLastError(handle);
+QrcCamera_GetSessionLastOpenedCameraId(handle);
 QrcCamera_GetCameraIdListJson();
 QrcCamera_GetCameraMetadataJson(position);
 ```
+
+Every concurrently recorded camera must use its own `QrcCameraSessionHandle`. The native recording path must not share a singleton camera session between left and right camera recorders. Destroying a session releases all native resources owned by that recorder.
 
 Changes to exported signatures require Unity bridge review and compatibility review.
 
@@ -80,23 +84,27 @@ Changes to exported signatures require Unity bridge review and compatibility rev
 
 # Lifecycle
 
-The intended lifecycle is:
+The intended lifecycle for each camera is:
 
 ```text
-Initialize
+CreateSession
     ->
-SetSaveFrameRate
+InitializeSession
     ->
-Open or OpenById
+SetSessionSaveFrameRate
     ->
-StartRecording
+OpenSession or OpenSessionById
     ->
-StopRecording
+StartSessionRecording
     ->
-Close
+StopSessionRecording
+    ->
+CloseSession
+    ->
+DestroySession
 ```
 
-`Close` should release native camera/session/image-reader resources and stop background writing.
+`CloseSession` should release native camera/device/image-reader resources and stop background writing. `DestroySession` should release the session object itself.
 
 Calling code should treat native result codes as authoritative operation results.
 
@@ -104,9 +112,9 @@ Calling code should treat native result codes as authoritative operation results
 
 # Camera Selection
 
-`QrcCamera_OpenById(cameraId)` is preferred when exact Quest passthrough camera IDs are known.
+`QrcCamera_OpenSessionById(handle, cameraId)` is preferred when exact Quest passthrough camera IDs are known.
 
-`QrcCamera_Open(position)` may be used only as a fallback unless stable left/right mapping is specified.
+`QrcCamera_OpenSession(handle, position)` may be used only as a fallback unless stable left/right mapping is specified.
 
 Left/right camera selection should be based on Meta camera metadata when available.
 
@@ -164,7 +172,7 @@ Stats should be treated as diagnostic information, not as the primary recording 
 
 Native functions return `QrcCameraResult` values.
 
-When an operation fails, Unity should be able to retrieve a human-readable reason through `QrcCamera_GetLastError()`.
+When an operation fails, Unity should be able to retrieve a human-readable reason through `QrcCamera_GetSessionLastError(handle)`.
 
 Failures must not be silently ignored by Unity integration code.
 

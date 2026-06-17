@@ -40,39 +40,46 @@ namespace RealityLog.Camera
 #if UNITY_ANDROID && !UNITY_EDITOR
         private const string LibraryName = "qrc_camera_native";
 
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcCamera_CreateSession(out IntPtr handle);
+
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcCamera_DestroySession(IntPtr handle);
+
         [DllImport(LibraryName, CharSet = CharSet.Ansi)]
-        private static extern NativeCameraResult QrcCamera_Initialize(
+        private static extern NativeCameraResult QrcCamera_InitializeSession(
+            IntPtr handle,
             int width,
             int height,
             string frameDirectory,
             string formatInfoFilePath);
 
         [DllImport(LibraryName)]
-        private static extern NativeCameraResult QrcCamera_SetSaveFrameRate(int fps);
+        private static extern NativeCameraResult QrcCamera_SetSessionSaveFrameRate(IntPtr handle, int fps);
 
         [DllImport(LibraryName)]
-        private static extern NativeCameraResult QrcCamera_Open(NativeCameraPosition position);
+        private static extern NativeCameraResult QrcCamera_OpenSession(IntPtr handle, NativeCameraPosition position);
 
         [DllImport(LibraryName, CharSet = CharSet.Ansi)]
-        private static extern NativeCameraResult QrcCamera_OpenById(string cameraId);
+        private static extern NativeCameraResult QrcCamera_OpenSessionById(IntPtr handle, string cameraId);
 
         [DllImport(LibraryName)]
-        private static extern NativeCameraResult QrcCamera_StartRecording();
+        private static extern NativeCameraResult QrcCamera_StartSessionRecording(IntPtr handle);
 
         [DllImport(LibraryName)]
-        private static extern NativeCameraResult QrcCamera_StopRecording();
+        private static extern NativeCameraResult QrcCamera_StopSessionRecording(IntPtr handle);
 
         [DllImport(LibraryName)]
-        private static extern NativeCameraResult QrcCamera_Close();
+        private static extern NativeCameraResult QrcCamera_CloseSession(IntPtr handle);
 
         [DllImport(LibraryName)]
-        private static extern NativeCameraResult QrcCamera_GetStats(out NativeCameraStats stats);
+        private static extern NativeCameraResult QrcCamera_GetSessionStats(IntPtr handle, out NativeCameraStats stats);
 
         [DllImport(LibraryName)]
-        private static extern IntPtr QrcCamera_GetLastError();
+        private static extern IntPtr QrcCamera_GetSessionLastError(IntPtr handle);
 
         [DllImport(LibraryName)]
-        private static extern IntPtr QrcCamera_GetLastOpenedCameraId();
+        private static extern IntPtr QrcCamera_GetSessionLastOpenedCameraId(IntPtr handle);
 
         [DllImport(LibraryName)]
         private static extern IntPtr QrcCamera_GetCameraIdListJson();
@@ -81,96 +88,116 @@ namespace RealityLog.Camera
         private static extern IntPtr QrcCamera_GetCameraMetadataJson(NativeCameraPosition position);
 #endif
 
-        public static NativeCameraResult Initialize(
+        public static NativeCameraResult CreateSession(out IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcCamera_CreateSession(out handle);
+#else
+            handle = IntPtr.Zero;
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult DestroySession(IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcCamera_DestroySession(handle);
+#else
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult InitializeSession(
+            IntPtr handle,
             int width,
             int height,
             string frameDirectory,
             string formatInfoFilePath)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return QrcCamera_Initialize(width, height, frameDirectory, formatInfoFilePath);
+            return QrcCamera_InitializeSession(handle, width, height, frameDirectory, formatInfoFilePath);
 #else
             return NativeCameraResult.NotSupported;
 #endif
         }
 
-        public static NativeCameraResult SetSaveFrameRate(int fps)
+        public static NativeCameraResult SetSessionSaveFrameRate(IntPtr handle, int fps)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return QrcCamera_SetSaveFrameRate(fps);
+            return QrcCamera_SetSessionSaveFrameRate(handle, fps);
 #else
             return NativeCameraResult.NotSupported;
 #endif
         }
 
-        public static NativeCameraResult Open(NativeCameraPosition position)
+        public static NativeCameraResult OpenSession(IntPtr handle, NativeCameraPosition position)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return QrcCamera_Open(position);
+            return QrcCamera_OpenSession(handle, position);
 #else
             return NativeCameraResult.NotSupported;
 #endif
         }
 
-        public static NativeCameraResult OpenById(string cameraId)
+        public static NativeCameraResult OpenSessionById(IntPtr handle, string cameraId)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return QrcCamera_OpenById(cameraId);
+            return QrcCamera_OpenSessionById(handle, cameraId);
 #else
             return NativeCameraResult.NotSupported;
 #endif
         }
 
-        public static NativeCameraResult StartRecording()
+        public static NativeCameraResult StartSessionRecording(IntPtr handle)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return QrcCamera_StartRecording();
+            return QrcCamera_StartSessionRecording(handle);
 #else
             return NativeCameraResult.NotSupported;
 #endif
         }
 
-        public static NativeCameraResult StopRecording()
+        public static NativeCameraResult StopSessionRecording(IntPtr handle)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return QrcCamera_StopRecording();
+            return QrcCamera_StopSessionRecording(handle);
 #else
             return NativeCameraResult.NotSupported;
 #endif
         }
 
-        public static NativeCameraResult Close()
+        public static NativeCameraResult CloseSession(IntPtr handle)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return QrcCamera_Close();
+            return QrcCamera_CloseSession(handle);
 #else
             return NativeCameraResult.NotSupported;
 #endif
         }
 
-        public static NativeCameraResult GetStats(out NativeCameraStats stats)
+        public static NativeCameraResult GetSessionStats(IntPtr handle, out NativeCameraStats stats)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return QrcCamera_GetStats(out stats);
+            return QrcCamera_GetSessionStats(handle, out stats);
 #else
             stats = default;
             return NativeCameraResult.NotSupported;
 #endif
         }
 
-        public static string GetLastError()
+        public static string GetSessionLastError(IntPtr handle)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return PtrToString(QrcCamera_GetLastError());
+            return PtrToString(QrcCamera_GetSessionLastError(handle));
 #else
             return "Native camera plugin is available only on Android devices.";
 #endif
         }
 
-        public static string GetLastOpenedCameraId()
+        public static string GetSessionLastOpenedCameraId(IntPtr handle)
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            return PtrToString(QrcCamera_GetLastOpenedCameraId());
+            return PtrToString(QrcCamera_GetSessionLastOpenedCameraId(handle));
 #else
             return string.Empty;
 #endif

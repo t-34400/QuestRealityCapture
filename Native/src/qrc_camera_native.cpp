@@ -21,6 +21,7 @@
 #include <fstream>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -126,7 +127,60 @@ std::string escapeJson(const std::string& value) {
             default: os << c; break;
         }
     }
+
     return os.str();
+}
+
+bool getEntry(ACameraMetadata* metadata, uint32_t tag, ACameraMetadata_const_entry& entry) {
+    return metadata != nullptr && ACameraMetadata_getConstEntry(metadata, tag, &entry) == ACAMERA_OK;
+}
+
+const char* lensFacingName(uint8_t value) {
+    switch (value) {
+        case ACAMERA_LENS_FACING_FRONT: return "front";
+        case ACAMERA_LENS_FACING_BACK: return "back";
+        case ACAMERA_LENS_FACING_EXTERNAL: return "external";
+        default: return "unknown";
+    }
+}
+
+const char* hardwareLevelName(uint8_t value) {
+    switch (value) {
+        case ACAMERA_INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED: return "limited";
+        case ACAMERA_INFO_SUPPORTED_HARDWARE_LEVEL_FULL: return "full";
+        case ACAMERA_INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY: return "legacy";
+        case ACAMERA_INFO_SUPPORTED_HARDWARE_LEVEL_3: return "level3";
+        case ACAMERA_INFO_SUPPORTED_HARDWARE_LEVEL_EXTERNAL: return "external";
+        default: return "unknown";
+    }
+}
+
+const char* poseReferenceName(uint8_t value) {
+    switch (value) {
+        case ACAMERA_LENS_POSE_REFERENCE_PRIMARY_CAMERA: return "primaryCamera";
+        case ACAMERA_LENS_POSE_REFERENCE_GYROSCOPE: return "gyroscope";
+        default: return "unknown";
+    }
+}
+
+const char* timestampSourceName(uint8_t value) {
+    switch (value) {
+        case ACAMERA_SENSOR_INFO_TIMESTAMP_SOURCE_UNKNOWN: return "unknown";
+        case ACAMERA_SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME: return "realtime";
+        default: return "unknown";
+    }
+}
+
+template <typename T>
+void writeNumericArray(std::ostringstream& os, const T* values, uint32_t count) {
+    os << "[";
+    for (uint32_t i = 0; i < count; ++i) {
+        if (i > 0) {
+            os << ",";
+        }
+        os << values[i];
+    }
+    os << "]";
 }
 
 struct PlaneInfo {
@@ -278,7 +332,7 @@ public:
             }
             id = ids[index];
         }
-        QRC_LOGW("QrcCamera_Open uses camera-id order fallback. Prefer QrcCamera_OpenById when exact Quest left/right IDs are known.");
+        QRC_LOGW("QrcCamera_OpenSession uses camera-id order fallback. Prefer QrcCamera_OpenSessionById when exact Quest left/right IDs are known.");
         return openById(id.c_str());
     }
 
@@ -1026,67 +1080,121 @@ private:
     FrameWriter writer_;
 };
 
-std::unique_ptr<CameraNative> gCamera;
-std::mutex gMutex;
+const char* kInvalidSessionHandleError = "Invalid camera session handle";
+std::mutex gMetadataMutex;
+std::string gCameraIdListJsonCache;
+std::string gCameraMetadataJsonCache;
 
-CameraNative* camera() {
-    std::lock_guard<std::mutex> lock(gMutex);
-    if (!gCamera) {
-        gCamera = std::make_unique<CameraNative>();
+CameraNative* sessionFromHandle(QrcCameraSessionHandle handle) {
+    return static_cast<CameraNative*>(handle);
+}
+
+QrcCameraResult requireSession(QrcCameraSessionHandle handle, CameraNative** outSession) {
+    if (handle == nullptr || outSession == nullptr) {
+        return QRC_CAMERA_ERROR_INVALID_ARGUMENT;
     }
-    return gCamera.get();
+    *outSession = sessionFromHandle(handle);
+    return *outSession == nullptr ? QRC_CAMERA_ERROR_INVALID_ARGUMENT : QRC_CAMERA_OK;
 }
 
 } // namespace
 
-extern "C" QrcCameraResult QrcCamera_Initialize(
+extern "C" QrcCameraResult QrcCamera_CreateSession(QrcCameraSessionHandle* outHandle) {
+    if (outHandle == nullptr) {
+        return QRC_CAMERA_ERROR_INVALID_ARGUMENT;
+    }
+    auto* session = new (std::nothrow) CameraNative();
+    if (session == nullptr) {
+        *outHandle = nullptr;
+        return QRC_CAMERA_ERROR_IO;
+    }
+    *outHandle = static_cast<QrcCameraSessionHandle>(session);
+    return QRC_CAMERA_OK;
+}
+
+extern "C" QrcCameraResult QrcCamera_DestroySession(QrcCameraSessionHandle handle) {
+    if (handle == nullptr) {
+        return QRC_CAMERA_ERROR_INVALID_ARGUMENT;
+    }
+    delete sessionFromHandle(handle);
+    return QRC_CAMERA_OK;
+}
+
+extern "C" QrcCameraResult QrcCamera_InitializeSession(
+    QrcCameraSessionHandle handle,
     int width,
     int height,
     const char* frameDirectory,
     const char* formatInfoFilePath) {
-    return camera()->initialize(width, height, frameDirectory, formatInfoFilePath);
+    CameraNative* session = nullptr;
+    QrcCameraResult result = requireSession(handle, &session);
+    return result == QRC_CAMERA_OK
+        ? session->initialize(width, height, frameDirectory, formatInfoFilePath)
+        : result;
 }
 
-extern "C" QrcCameraResult QrcCamera_SetSaveFrameRate(int fps) {
-    return camera()->setSaveFrameRate(fps);
+extern "C" QrcCameraResult QrcCamera_SetSessionSaveFrameRate(QrcCameraSessionHandle handle, int fps) {
+    CameraNative* session = nullptr;
+    QrcCameraResult result = requireSession(handle, &session);
+    return result == QRC_CAMERA_OK ? session->setSaveFrameRate(fps) : result;
 }
 
-extern "C" QrcCameraResult QrcCamera_Open(QrcCameraPosition position) {
-    return camera()->openByPosition(position);
+extern "C" QrcCameraResult QrcCamera_OpenSession(QrcCameraSessionHandle handle, QrcCameraPosition position) {
+    CameraNative* session = nullptr;
+    QrcCameraResult result = requireSession(handle, &session);
+    return result == QRC_CAMERA_OK ? session->openByPosition(position) : result;
 }
 
-extern "C" QrcCameraResult QrcCamera_OpenById(const char* cameraId) {
-    return camera()->openById(cameraId);
+extern "C" QrcCameraResult QrcCamera_OpenSessionById(QrcCameraSessionHandle handle, const char* cameraId) {
+    CameraNative* session = nullptr;
+    QrcCameraResult result = requireSession(handle, &session);
+    return result == QRC_CAMERA_OK ? session->openById(cameraId) : result;
 }
 
-extern "C" QrcCameraResult QrcCamera_StartRecording(void) {
-    return camera()->startRecording();
+extern "C" QrcCameraResult QrcCamera_StartSessionRecording(QrcCameraSessionHandle handle) {
+    CameraNative* session = nullptr;
+    QrcCameraResult result = requireSession(handle, &session);
+    return result == QRC_CAMERA_OK ? session->startRecording() : result;
 }
 
-extern "C" QrcCameraResult QrcCamera_StopRecording(void) {
-    return camera()->stopRecording();
+extern "C" QrcCameraResult QrcCamera_StopSessionRecording(QrcCameraSessionHandle handle) {
+    CameraNative* session = nullptr;
+    QrcCameraResult result = requireSession(handle, &session);
+    return result == QRC_CAMERA_OK ? session->stopRecording() : result;
 }
 
-extern "C" QrcCameraResult QrcCamera_Close(void) {
-    return camera()->close();
+extern "C" QrcCameraResult QrcCamera_CloseSession(QrcCameraSessionHandle handle) {
+    CameraNative* session = nullptr;
+    QrcCameraResult result = requireSession(handle, &session);
+    return result == QRC_CAMERA_OK ? session->close() : result;
 }
 
-extern "C" QrcCameraResult QrcCamera_GetStats(QrcCameraStats* outStats) {
-    return camera()->getStats(outStats);
+extern "C" QrcCameraResult QrcCamera_GetSessionStats(QrcCameraSessionHandle handle, QrcCameraStats* outStats) {
+    CameraNative* session = nullptr;
+    QrcCameraResult result = requireSession(handle, &session);
+    return result == QRC_CAMERA_OK ? session->getStats(outStats) : result;
 }
 
-extern "C" const char* QrcCamera_GetLastError(void) {
-    return camera()->lastError();
+extern "C" const char* QrcCamera_GetSessionLastError(QrcCameraSessionHandle handle) {
+    CameraNative* session = sessionFromHandle(handle);
+    return session == nullptr ? kInvalidSessionHandleError : session->lastError();
 }
 
-extern "C" const char* QrcCamera_GetLastOpenedCameraId(void) {
-    return camera()->lastOpenedCameraId();
+extern "C" const char* QrcCamera_GetSessionLastOpenedCameraId(QrcCameraSessionHandle handle) {
+    CameraNative* session = sessionFromHandle(handle);
+    return session == nullptr ? "" : session->lastOpenedCameraId();
 }
 
 extern "C" const char* QrcCamera_GetCameraIdListJson(void) {
-    return camera()->cameraIdListJson();
+    std::lock_guard<std::mutex> lock(gMetadataMutex);
+    CameraNative metadataReader;
+    gCameraIdListJsonCache = metadataReader.cameraIdListJson();
+    return gCameraIdListJsonCache.c_str();
 }
 
 extern "C" const char* QrcCamera_GetCameraMetadataJson(QrcCameraPosition position) {
-    return camera()->cameraMetadataJson(position);
+    std::lock_guard<std::mutex> lock(gMetadataMutex);
+    CameraNative metadataReader;
+    gCameraMetadataJsonCache = metadataReader.cameraMetadataJson(position);
+    return gCameraMetadataJsonCache.c_str();
 }

@@ -20,15 +20,17 @@ CMakeLists.txt
 ## C API
 
 ```c
-QrcCamera_Initialize(width, height, frameDirectory, formatInfoFilePath);
-QrcCamera_SetSaveFrameRate(fps);   // 0なら全保存、正の値なら保存フレームを間引く
-QrcCamera_Open(position);          // 0=left, 1=right。ただし現状はcameraId順のfallback
-QrcCamera_OpenById(cameraId);      // 実運用ではこちらを推奨
-QrcCamera_StartRecording();
-QrcCamera_StopRecording();
-QrcCamera_Close();
-QrcCamera_GetStats(&stats);
-QrcCamera_GetLastError();
+QrcCamera_CreateSession(&handle);
+QrcCamera_InitializeSession(handle, width, height, frameDirectory, formatInfoFilePath);
+QrcCamera_SetSessionSaveFrameRate(handle, fps);   // 0なら全保存、正の値なら保存フレームを間引く
+QrcCamera_OpenSession(handle, position);          // 0=left, 1=right。ただしcameraId順fallback
+QrcCamera_OpenSessionById(handle, cameraId);      // 実運用ではこちらを推奨
+QrcCamera_StartSessionRecording(handle);
+QrcCamera_StopSessionRecording(handle);
+QrcCamera_CloseSession(handle);
+QrcCamera_GetSessionStats(handle, &stats);
+QrcCamera_GetSessionLastError(handle);
+QrcCamera_DestroySession(handle);
 QrcCamera_GetCameraIdListJson();
 QrcCamera_GetCameraMetadataJson(position); // 0=left, 1=right
 ```

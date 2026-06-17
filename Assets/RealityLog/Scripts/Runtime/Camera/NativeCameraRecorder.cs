@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using RealityLog.Recording;
 using UnityEngine;
 
@@ -21,6 +22,7 @@ namespace RealityLog.Camera
         private readonly RecordingPathProvider pathProvider = new();
         private readonly RecordingMetadataWriter metadataWriter = new();
 
+        private IntPtr sessionHandle = IntPtr.Zero;
         private bool initialized;
         private bool opened;
         private bool recording;
@@ -81,14 +83,20 @@ namespace RealityLog.Camera
             metadataWriter.WriteCameraMetadata(paths.MetadataFilePath, metadata);
 
             var size = metadata.sensor.pixelArraySize;
-            if (!CheckResult(NativeCameraBridge.Initialize(size.width, size.height, paths.ImageDirectoryPath, paths.FormatInfoFilePath), "initialize native camera"))
+            if (!EnsureSession())
             {
                 return false;
             }
 
-            if (!CheckResult(NativeCameraBridge.SetSaveFrameRate(targetSaveFps), "set native save frame rate"))
+            if (!CheckResult(NativeCameraBridge.InitializeSession(sessionHandle, size.width, size.height, paths.ImageDirectoryPath, paths.FormatInfoFilePath), "initialize native camera"))
             {
-                NativeCameraBridge.Close();
+                DestroySession();
+                return false;
+            }
+
+            if (!CheckResult(NativeCameraBridge.SetSessionSaveFrameRate(sessionHandle, targetSaveFps), "set native save frame rate"))
+            {
+                DestroySession();
                 return false;
             }
 
@@ -117,8 +125,8 @@ namespace RealityLog.Camera
             }
 
             var result = preferOpenByCameraId && !string.IsNullOrEmpty(metadata.cameraId)
-                ? NativeCameraBridge.OpenById(metadata.cameraId)
-                : NativeCameraBridge.Open(ToNativePosition(cameraPosition));
+                ? NativeCameraBridge.OpenSessionById(sessionHandle, metadata.cameraId)
+                : NativeCameraBridge.OpenSession(sessionHandle, ToNativePosition(cameraPosition));
 
             if (!CheckResult(result, "open native camera"))
             {
@@ -126,7 +134,7 @@ namespace RealityLog.Camera
             }
 
             opened = true;
-            Debug.Log($"[{Constants.LOG_TAG}] Native camera opened. ID={NativeCameraBridge.GetLastOpenedCameraId()}");
+            Debug.Log($"[{Constants.LOG_TAG}] Native camera opened. ID={NativeCameraBridge.GetSessionLastOpenedCameraId(sessionHandle)}");
             return true;
         }
 
@@ -142,7 +150,7 @@ namespace RealityLog.Camera
                 return false;
             }
 
-            if (!CheckResult(NativeCameraBridge.StartRecording(), "start native recording"))
+            if (!CheckResult(NativeCameraBridge.StartSessionRecording(sessionHandle), "start native recording"))
             {
                 return false;
             }
@@ -158,7 +166,7 @@ namespace RealityLog.Camera
                 return true;
             }
 
-            var result = NativeCameraBridge.StopRecording();
+            var result = NativeCameraBridge.StopSessionRecording(sessionHandle);
             recording = false;
             RefreshStats();
             return CheckResult(result, "stop native recording");
@@ -176,17 +184,24 @@ namespace RealityLog.Camera
                 return true;
             }
 
-            var result = NativeCameraBridge.Close();
+            var result = NativeCameraBridge.CloseSession(sessionHandle);
             initialized = false;
             opened = false;
             selectedMetadata = null;
             RefreshStats();
-            return CheckResult(result, "close native camera");
+            var ok = CheckResult(result, "close native camera");
+            DestroySession();
+            return ok;
         }
 
         public bool RefreshStats()
         {
-            var result = NativeCameraBridge.GetStats(out var stats);
+            if (sessionHandle == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            var result = NativeCameraBridge.GetSessionStats(sessionHandle, out var stats);
             if (result == NativeCameraResult.Ok)
             {
                 LastStats = stats;
@@ -199,6 +214,36 @@ namespace RealityLog.Camera
         private void OnDestroy()
         {
             Close();
+            DestroySession();
+        }
+
+        private bool EnsureSession()
+        {
+            if (sessionHandle != IntPtr.Zero)
+            {
+                return true;
+            }
+
+            var result = NativeCameraBridge.CreateSession(out sessionHandle);
+            if (result == NativeCameraResult.Ok && sessionHandle != IntPtr.Zero)
+            {
+                return true;
+            }
+
+            Debug.LogError($"[{Constants.LOG_TAG}] Failed to create native camera session: {result}.");
+            sessionHandle = IntPtr.Zero;
+            return false;
+        }
+
+        private void DestroySession()
+        {
+            if (sessionHandle == IntPtr.Zero)
+            {
+                return;
+            }
+
+            NativeCameraBridge.DestroySession(sessionHandle);
+            sessionHandle = IntPtr.Zero;
         }
 
         private RecordingSessionPaths.CameraPaths ResolveRecordingPaths()
@@ -268,14 +313,14 @@ namespace RealityLog.Camera
             };
         }
 
-        private static bool CheckResult(NativeCameraResult result, string operation)
+        private bool CheckResult(NativeCameraResult result, string operation)
         {
             if (result == NativeCameraResult.Ok)
             {
                 return true;
             }
 
-            Debug.LogError($"[{Constants.LOG_TAG}] Failed to {operation}: {result}. {NativeCameraBridge.GetLastError()}");
+            Debug.LogError($"[{Constants.LOG_TAG}] Failed to {operation}: {result}. {NativeCameraBridge.GetSessionLastError(sessionHandle)}");
             return false;
         }
     }

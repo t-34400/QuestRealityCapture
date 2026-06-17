@@ -32,21 +32,25 @@ typedef struct QrcCameraStats {
     int64_t lastSavedTimestampNs;
 } QrcCameraStats;
 
-QrcCameraResult QrcCamera_Initialize(
+typedef void* QrcCameraSessionHandle;
+
+QrcCameraResult QrcCamera_CreateSession(QrcCameraSessionHandle* outHandle);
+QrcCameraResult QrcCamera_DestroySession(QrcCameraSessionHandle handle);
+QrcCameraResult QrcCamera_InitializeSession(
+    QrcCameraSessionHandle handle,
     int width,
     int height,
     const char* frameDirectory,
     const char* formatInfoFilePath);
-
-QrcCameraResult QrcCamera_SetSaveFrameRate(int fps);
-QrcCameraResult QrcCamera_Open(QrcCameraPosition position);
-QrcCameraResult QrcCamera_OpenById(const char* cameraId);
-QrcCameraResult QrcCamera_StartRecording(void);
-QrcCameraResult QrcCamera_StopRecording(void);
-QrcCameraResult QrcCamera_Close(void);
-QrcCameraResult QrcCamera_GetStats(QrcCameraStats* outStats);
-const char* QrcCamera_GetLastError(void);
-const char* QrcCamera_GetLastOpenedCameraId(void);
+QrcCameraResult QrcCamera_SetSessionSaveFrameRate(QrcCameraSessionHandle handle, int fps);
+QrcCameraResult QrcCamera_OpenSession(QrcCameraSessionHandle handle, QrcCameraPosition position);
+QrcCameraResult QrcCamera_OpenSessionById(QrcCameraSessionHandle handle, const char* cameraId);
+QrcCameraResult QrcCamera_StartSessionRecording(QrcCameraSessionHandle handle);
+QrcCameraResult QrcCamera_StopSessionRecording(QrcCameraSessionHandle handle);
+QrcCameraResult QrcCamera_CloseSession(QrcCameraSessionHandle handle);
+QrcCameraResult QrcCamera_GetSessionStats(QrcCameraSessionHandle handle, QrcCameraStats* outStats);
+const char* QrcCamera_GetSessionLastError(QrcCameraSessionHandle handle);
+const char* QrcCamera_GetSessionLastOpenedCameraId(QrcCameraSessionHandle handle);
 const char* QrcCamera_GetCameraIdListJson(void);
 const char* QrcCamera_GetCameraMetadataJson(QrcCameraPosition position);
 

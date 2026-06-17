@@ -100,7 +100,7 @@ Recommended component:
 CameraMetadataProvider
 ```
 
-The Unity metadata provider is responsible for returning camera metadata for a requested `CameraPosition`. Metadata-derived camera IDs should be passed to the native plugin through `QrcCamera_OpenById()` when available.
+The Unity metadata provider is responsible for returning camera metadata for a requested `CameraPosition`. Metadata-derived camera IDs should be passed to the native plugin through `QrcCamera_OpenSessionById()` when available.
 
 Recommended native path:
 
@@ -130,6 +130,8 @@ ICameraRecorder
 The native Unity integration should provide a concrete recorder component that implements the shared recorder lifecycle instead of exposing native bridge calls directly to scene logic.
 
 Native recorder components should own native lifecycle orchestration only. Metadata lookup, save path construction, and camera metadata JSON writing should be delegated to focused components.
+
+Native recorder components must own one native session handle per recorder instance. A left-camera recorder and a right-camera recorder must not share the same native camera session.
 
 The exact names may differ, but the ownership boundary should remain explicit.
 
@@ -182,7 +184,7 @@ Changing these file names requires downstream compatibility review.
 
 Unity integration must inspect native result codes.
 
-On native failure, Unity should retrieve `QrcCamera_GetLastError()` and report it through an appropriate Unity logging or UI path.
+On native failure, Unity should retrieve `QrcCamera_GetSessionLastError(handle)` and report it through an appropriate Unity logging or UI path.
 
 Silent native failures are not acceptable for recording operations.
 

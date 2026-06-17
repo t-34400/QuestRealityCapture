@@ -23,7 +23,7 @@ namespace RealityLog.Camera
             var json = NativeCameraBridge.GetCameraMetadataJson(nativePosition.Value);
             if (string.IsNullOrWhiteSpace(json))
             {
-                Debug.LogError($"[{Constants.LOG_TAG}] Native camera metadata JSON is empty. {NativeCameraBridge.GetLastError()}");
+                Debug.LogError($"[{Constants.LOG_TAG}] Native camera metadata JSON is empty.");
                 return null;
             }
 
