@@ -134,6 +134,41 @@ On Android devices, this allows configuration override through adb by placing `r
 
 A missing external configuration file must not be treated as a startup error. Missing configuration should fall back to the assigned `TextAsset`, then to defaults that preserve the existing output layout.
 
+Default values are authoritative and must preserve the existing output layout:
+
+```text
+sessionNameFormat = yyyyMMdd_HHmmss
+camera.enabled = true
+camera.targetSaveFps = 10
+camera.preferOpenByCameraId = true
+camera.allowJavaMetadataFallback = false
+camera.left.enabled = true
+camera.left.imageDirectoryName = left_camera
+camera.left.metadataFileName = left_camera_characteristics.json
+camera.left.formatInfoFileName = left_camera_image_format.json
+camera.right.enabled = true
+camera.right.imageDirectoryName = right_camera
+camera.right.metadataFileName = right_camera_characteristics.json
+camera.right.formatInfoFileName = right_camera_image_format.json
+depth.enabled = true
+depth.targetSaveFps = 10
+depth.leftDirectoryName = left_depth
+depth.rightDirectoryName = right_depth
+depth.leftDescriptorFileName = left_depth_descriptors.csv
+depth.rightDescriptorFileName = right_depth_descriptors.csv
+pose.enabled = true
+pose.targetSaveFps = 30
+pose.fileName = poses.csv
+```
+
+Packaged example/default JSON should remain available at:
+
+```text
+Assets/RealityLog/Configs/recording_config.default.json
+```
+
+The default JSON file is intended as the source template for adb overrides.
+
 Supported configuration fields include:
 
 ```json

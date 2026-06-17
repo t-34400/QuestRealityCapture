@@ -53,7 +53,22 @@ namespace RealityLog.Recording
 
         private static string NormalizeSessionNameFormat(string format)
         {
-            return string.IsNullOrWhiteSpace(format) ? "yyyyMMdd_HHmmss" : format;
+            const string defaultFormat = "yyyyMMdd_HHmmss";
+            if (string.IsNullOrWhiteSpace(format))
+            {
+                return defaultFormat;
+            }
+
+            try
+            {
+                _ = DateTime.Now.ToString(format);
+                return format;
+            }
+            catch (FormatException ex)
+            {
+                Debug.LogError($"[{Constants.LOG_TAG}] Invalid sessionNameFormat '{format}': {ex.Message}. Using {defaultFormat}.");
+                return defaultFormat;
+            }
         }
     }
 }

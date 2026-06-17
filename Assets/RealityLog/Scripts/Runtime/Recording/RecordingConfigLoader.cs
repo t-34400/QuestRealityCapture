@@ -77,9 +77,76 @@ namespace RealityLog.Recording
 
         private static void Normalize(RecordingSessionConfig config)
         {
+            config.sessionNameFormat = NormalizeText(
+                config.sessionNameFormat,
+                new RecordingSessionConfig().sessionNameFormat,
+                "sessionNameFormat");
+
+            config.camera ??= new RecordingSessionConfig.CameraConfig();
             config.camera.targetSaveFps = NormalizeFps(config.camera.targetSaveFps, "camera.targetSaveFps");
+            config.camera.left = NormalizeCameraSide(
+                config.camera.left,
+                RecordingSessionConfig.CameraSideConfig.LeftDefaults(),
+                "camera.left");
+            config.camera.right = NormalizeCameraSide(
+                config.camera.right,
+                RecordingSessionConfig.CameraSideConfig.RightDefaults(),
+                "camera.right");
+
+            config.depth ??= new RecordingSessionConfig.DepthConfig();
             config.depth.targetSaveFps = NormalizeFps(config.depth.targetSaveFps, "depth.targetSaveFps");
+            config.depth.leftDirectoryName = NormalizeText(
+                config.depth.leftDirectoryName,
+                "left_depth",
+                "depth.leftDirectoryName");
+            config.depth.rightDirectoryName = NormalizeText(
+                config.depth.rightDirectoryName,
+                "right_depth",
+                "depth.rightDirectoryName");
+            config.depth.leftDescriptorFileName = NormalizeText(
+                config.depth.leftDescriptorFileName,
+                "left_depth_descriptors.csv",
+                "depth.leftDescriptorFileName");
+            config.depth.rightDescriptorFileName = NormalizeText(
+                config.depth.rightDescriptorFileName,
+                "right_depth_descriptors.csv",
+                "depth.rightDescriptorFileName");
+
+            config.pose ??= new RecordingSessionConfig.PoseConfig();
             config.pose.targetSaveFps = NormalizeFps(config.pose.targetSaveFps, "pose.targetSaveFps");
+            config.pose.fileName = NormalizeText(config.pose.fileName, "poses.csv", "pose.fileName");
+        }
+
+        private static RecordingSessionConfig.CameraSideConfig NormalizeCameraSide(
+            RecordingSessionConfig.CameraSideConfig? side,
+            RecordingSessionConfig.CameraSideConfig defaults,
+            string name)
+        {
+            side ??= defaults;
+            side.imageDirectoryName = NormalizeText(
+                side.imageDirectoryName,
+                defaults.imageDirectoryName,
+                $"{name}.imageDirectoryName");
+            side.metadataFileName = NormalizeText(
+                side.metadataFileName,
+                defaults.metadataFileName,
+                $"{name}.metadataFileName");
+            side.formatInfoFileName = NormalizeText(
+                side.formatInfoFileName,
+                defaults.formatInfoFileName,
+                $"{name}.formatInfoFileName");
+            return side;
+        }
+
+        private static string NormalizeText(string? value, string defaultValue, string name)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+
+            Debug.LogWarning($"[{Constants.LOG_TAG}] Empty recording config value {name}. Using default: {defaultValue}");
+            return defaultValue;
         }
 
         private static int NormalizeFps(int fps, string name)
