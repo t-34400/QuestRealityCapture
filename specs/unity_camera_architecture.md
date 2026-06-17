@@ -72,7 +72,7 @@ This mirrors the native plugin lifecycle and avoids coupling recording behavior 
 
 Permission acquisition should be isolated from camera session and recorder implementation details.
 
-A permission component may use Java/Kotlin support code when needed, but should not own recording lifecycle or frame persistence.
+A permission component may use Java/Kotlin support code when needed, but should not own recording lifecycle, frame persistence, or metadata lookup.
 
 Recommended component:
 
@@ -80,13 +80,15 @@ Recommended component:
 CameraPermissionService
 ```
 
+The current Unity implementation keeps this boundary in `CameraPermissionManager`, which owns permission requests and `CameraManager` instance notification only.
+
 ---
 
 # Camera Metadata
 
 Unity may use Java/Kotlin support code to read Meta camera metadata, including camera source and camera position.
 
-Metadata retrieval should be separate from permission acquisition when practical.
+Metadata retrieval must remain separate from permission acquisition when practical.
 
 Recommended component:
 
@@ -94,7 +96,7 @@ Recommended component:
 CameraMetadataProvider
 ```
 
-Metadata-derived camera IDs should be passed to the native plugin through `QrcCamera_OpenById()` when available.
+The Unity metadata provider is responsible for returning camera metadata for a requested `CameraPosition`. Metadata-derived camera IDs should be passed to the native plugin through `QrcCamera_OpenById()` when available.
 
 ---
 
@@ -113,6 +115,8 @@ ICameraRecorder
 ```
 
 The native Unity integration should provide a concrete recorder component that implements the shared recorder lifecycle instead of exposing native bridge calls directly to scene logic.
+
+Native recorder components should own native lifecycle orchestration only. Metadata lookup, save path construction, and camera metadata JSON writing should be delegated to focused components.
 
 The exact names may differ, but the ownership boundary should remain explicit.
 
@@ -140,7 +144,24 @@ This separation is required to support native lifecycle error handling and compa
 
 Unity should decide the recording directory and metadata file paths before native initialization.
 
+Path construction should remain separate from native recorder lifecycle orchestration. The Unity path provider owns data directory creation, image directory creation, camera metadata file path selection, and format metadata file path selection.
+
 The native plugin should receive explicit paths and should not infer Unity project or scene state.
+
+---
+
+# Recording Metadata Files
+
+Unity-side recording metadata writing should remain separate from native recorder lifecycle orchestration.
+
+The Unity metadata writer owns camera characteristics JSON output, including legacy-compatible file names such as:
+
+```text
+left_camera_characteristics.json
+right_camera_characteristics.json
+```
+
+Changing these file names requires downstream compatibility review.
 
 ---
 

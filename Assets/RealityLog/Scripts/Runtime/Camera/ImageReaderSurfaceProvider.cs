@@ -1,7 +1,6 @@
 # nullable enable
 
 using System;
-using System.IO;
 using UnityEngine;
 
 namespace RealityLog.Camera
@@ -19,6 +18,9 @@ namespace RealityLog.Camera
         [SerializeField] private string formatInfoFileName = "left_camera_image_format.json";
         [SerializeField] private int bufferPoolSize = 5;
 
+        private readonly RecordingPathProvider pathProvider = new();
+        private readonly RecordingMetadataWriter metadataWriter = new();
+
         private AndroidJavaObject? currentInstance;
 
         public string DataDirectoryName
@@ -31,33 +33,30 @@ namespace RealityLog.Camera
         {
             Close();
 
-            var dataDirPath = Path.Join(Application.persistentDataPath, dataDirectoryName);
-
-            var metaDataFilePath = Path.Join(dataDirPath, cameraMetaDataFileName);
-            var metaDataJson = JsonUtility.ToJson(metadata);
             try
             {
-                File.WriteAllText(metaDataFilePath, metaDataJson);
+                var paths = pathProvider.Create(
+                    dataDirectoryName,
+                    imageSubdirName,
+                    cameraMetaDataFileName,
+                    formatInfoFileName);
+                metadataWriter.WriteCameraMetadata(paths.CameraMetadataFilePath, metadata);
+
+                var size = metadata.sensor.pixelArraySize;
+                currentInstance = new AndroidJavaObject(
+                    IMAGE_READER_SURFACE_PROVIDER_CLASS_NAME,
+                    size.width,
+                    size.height,
+                    paths.ImageDirectoryPath,
+                    paths.FormatInfoFilePath,
+                    bufferPoolSize
+                );
+                currentInstance?.Call(SET_SHOULD_SAVE_FRAME_METHOD_NAME, true);
             }
             catch (Exception e)
             {
                 Debug.LogException(e);
             }
-
-            var imageFileDirPath = Path.Join(dataDirPath, imageSubdirName);
-            var formatInfoFilePath = Path.Join(dataDirPath, formatInfoFileName);
-
-            var size = metadata.sensor.pixelArraySize;
-
-            currentInstance = new AndroidJavaObject(
-                IMAGE_READER_SURFACE_PROVIDER_CLASS_NAME,
-                size.width,
-                size.height,
-                imageFileDirPath,
-                formatInfoFilePath,
-                bufferPoolSize
-            );
-            currentInstance?.Call(SET_SHOULD_SAVE_FRAME_METHOD_NAME, true);
 
             return currentInstance;
         }

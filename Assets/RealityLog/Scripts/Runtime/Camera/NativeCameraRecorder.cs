@@ -1,7 +1,5 @@
 #nullable enable
 
-using System;
-using System.IO;
 using UnityEngine;
 
 namespace RealityLog.Camera
@@ -9,6 +7,7 @@ namespace RealityLog.Camera
     public class NativeCameraRecorder : MonoBehaviour, ICameraRecorder
     {
         [SerializeField] private CameraPermissionManager cameraPermissionManager = default!;
+        [SerializeField] private JavaCameraMetadataProvider cameraMetadataProvider = default!;
         [SerializeField] private CameraPosition cameraPosition = CameraPosition.Left;
         [SerializeField] private string dataDirectoryName = string.Empty;
         [SerializeField] private string imageSubdirName = "left_camera";
@@ -17,9 +16,13 @@ namespace RealityLog.Camera
         [SerializeField] private int targetSaveFps = 0;
         [SerializeField] private bool preferOpenByCameraId = true;
 
+        private readonly RecordingPathProvider pathProvider = new();
+        private readonly RecordingMetadataWriter metadataWriter = new();
+
         private bool initialized;
         private bool opened;
         private bool recording;
+        private CameraMetadata? selectedMetadata;
 
         public string DataDirectoryName
         {
@@ -41,25 +44,23 @@ namespace RealityLog.Camera
                 return true;
             }
 
-            var metadata = GetSelectedMetadata();
+            var metadata = ResolveSelectedMetadata();
             if (metadata == null)
             {
                 Debug.LogError($"[{Constants.LOG_TAG}] Native camera metadata is unavailable for {cameraPosition}.");
                 return false;
             }
 
-            var dataDirPath = Path.Combine(Application.persistentDataPath, dataDirectoryName);
-            Directory.CreateDirectory(dataDirPath);
+            var paths = pathProvider.Create(
+                dataDirectoryName,
+                imageSubdirName,
+                cameraMetaDataFileName,
+                formatInfoFileName);
 
-            WriteCameraMetadata(dataDirPath, metadata);
+            metadataWriter.WriteCameraMetadata(paths.CameraMetadataFilePath, metadata);
 
-            var imageFileDirPath = Path.Combine(dataDirPath, imageSubdirName);
-            Directory.CreateDirectory(imageFileDirPath);
-
-            var formatInfoFilePath = Path.Combine(dataDirPath, formatInfoFileName);
             var size = metadata.sensor.pixelArraySize;
-
-            if (!CheckResult(NativeCameraBridge.Initialize(size.width, size.height, imageFileDirPath, formatInfoFilePath), "initialize native camera"))
+            if (!CheckResult(NativeCameraBridge.Initialize(size.width, size.height, paths.ImageDirectoryPath, paths.FormatInfoFilePath), "initialize native camera"))
             {
                 return false;
             }
@@ -70,6 +71,7 @@ namespace RealityLog.Camera
                 return false;
             }
 
+            selectedMetadata = metadata;
             initialized = true;
             return true;
         }
@@ -86,7 +88,7 @@ namespace RealityLog.Camera
                 return false;
             }
 
-            var metadata = GetSelectedMetadata();
+            var metadata = selectedMetadata ?? ResolveSelectedMetadata();
             if (metadata == null)
             {
                 Debug.LogError($"[{Constants.LOG_TAG}] Native camera metadata is unavailable for {cameraPosition}.");
@@ -156,6 +158,7 @@ namespace RealityLog.Camera
             var result = NativeCameraBridge.Close();
             initialized = false;
             opened = false;
+            selectedMetadata = null;
             RefreshStats();
             return CheckResult(result, "close native camera");
         }
@@ -177,21 +180,27 @@ namespace RealityLog.Camera
             Close();
         }
 
-        private CameraMetadata? GetSelectedMetadata()
+        private CameraMetadata? ResolveSelectedMetadata()
         {
-            return cameraPosition switch
-            {
-                CameraPosition.Left => cameraPermissionManager.LeftCameraMetaData,
-                CameraPosition.Right => cameraPermissionManager.RightCameraMetaData,
-                _ => null
-            };
+            return ResolveMetadataProvider()?.GetMetadata(cameraPosition);
         }
 
-        private void WriteCameraMetadata(string dataDirPath, CameraMetadata metadata)
+        private ICameraMetadataProvider? ResolveMetadataProvider()
         {
-            var metaDataFilePath = Path.Combine(dataDirPath, cameraMetaDataFileName);
-            var metaDataJson = JsonUtility.ToJson(metadata);
-            File.WriteAllText(metaDataFilePath, metaDataJson);
+            if (cameraMetadataProvider != null)
+            {
+                return cameraMetadataProvider;
+            }
+
+            if (cameraPermissionManager == null)
+            {
+                return null;
+            }
+
+            cameraMetadataProvider = cameraPermissionManager.GetComponent<JavaCameraMetadataProvider>()
+                ?? cameraPermissionManager.gameObject.AddComponent<JavaCameraMetadataProvider>();
+            cameraMetadataProvider.Configure(cameraPermissionManager);
+            return cameraMetadataProvider;
         }
 
         private static NativeCameraPosition ToNativePosition(CameraPosition position)

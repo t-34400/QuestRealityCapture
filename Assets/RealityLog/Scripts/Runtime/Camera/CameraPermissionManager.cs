@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace RealityLog.Camera
 {
-    class CameraPermissionManager : MonoBehaviour
+    public class CameraPermissionManager : MonoBehaviour
     {
         private const float CAMERA_MANAGER_CHECK_INTERVAL = 0.1f;
 
@@ -16,39 +16,7 @@ namespace RealityLog.Camera
         private const string HAS_CAMERA_MANAGER_METHOD_NAME = "hasCameraManager";
         private const string GET_CAMERA_MANAGER_METHOD_NAME = "getCameraManager";         
 
-        private const string GET_LEFT_CAMERA_META_DATA_METHOD_NAME = "getLeftCameraMetaDataJson";
-        private const string GET_RIGHT_CAMERA_META_DATA_METHOD_NAME = "getRightCameraMetaDataJson";
-
         public bool HasCameraManager => JavaInstance?.Call<bool>(HAS_CAMERA_MANAGER_METHOD_NAME) ?? false;
-
-        public CameraMetadata? LeftCameraMetaData
-        {
-            get
-            {
-                var json = JavaInstance?.Call<string>(GET_LEFT_CAMERA_META_DATA_METHOD_NAME) ?? string.Empty;
-
-                if (string.IsNullOrEmpty(json))
-                {
-                    return null;
-                }
-
-                return JsonUtility.FromJson<CameraMetadata>(json);
-            }
-        }
-        public CameraMetadata? RightCameraMetaData
-        {
-            get
-            {
-                var json = JavaInstance?.Call<string>(GET_RIGHT_CAMERA_META_DATA_METHOD_NAME) ?? string.Empty;
-
-                if (string.IsNullOrEmpty(json))
-                {
-                    return null;
-                }
-
-                return JsonUtility.FromJson<CameraMetadata>(json);
-            }
-        }
 
         public AndroidJavaObject? JavaInstance { get; private set; }
         public AndroidJavaObject? CameraManagerJavaInstance { get; private set; }
