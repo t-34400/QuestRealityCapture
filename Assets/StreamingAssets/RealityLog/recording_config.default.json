@@ -29,6 +29,8 @@
   "pose": {
     "enabled": true,
     "targetSaveFps": 30,
-    "fileName": "poses.csv"
+    "hmdFileName": "hmd_poses.csv",
+    "leftControllerFileName": "left_controller_poses.csv",
+    "rightControllerFileName": "right_controller_poses.csv"
   }
 }

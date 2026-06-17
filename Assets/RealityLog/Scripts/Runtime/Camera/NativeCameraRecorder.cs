@@ -13,7 +13,7 @@ namespace RealityLog.Camera
         [SerializeField] private bool allowJavaMetadataFallback = false;
         [SerializeField] private CameraPosition cameraPosition = CameraPosition.Left;
         [SerializeField] private string dataDirectoryName = string.Empty;
-        [SerializeField] private string imageSubdirName = "left_camera";
+        [SerializeField] private string imageSubdirName = "left_camera_raw";
         [SerializeField] private string cameraMetaDataFileName = "left_camera_characteristics.json";
         [SerializeField] private string formatInfoFileName = "left_camera_image_format.json";
         [SerializeField] private int targetSaveFps = 0;

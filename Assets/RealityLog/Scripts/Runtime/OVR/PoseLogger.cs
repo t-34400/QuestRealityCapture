@@ -24,7 +24,7 @@ namespace RealityLog.OVR
 
         [SerializeField] private OVRPlugin.Node node = OVRPlugin.Node.Head;
         [SerializeField] private PoseStateMode mode = PoseStateMode.Immediate;
-        [SerializeField] private string fileName = "poses.csv";
+        [SerializeField] private string fileName = "hmd_poses.csv";
         [SerializeField] private string directoryName = "";
         [SerializeField] private int targetSaveFps = 0;
         [SerializeField] private bool startLoggingOnStart = false;
@@ -46,10 +46,17 @@ namespace RealityLog.OVR
             set => directoryName = value;
         }
 
+        public OVRPlugin.Node Node => node;
+
         public void ApplyConfiguration(RecordingSessionConfig.PoseConfig config, string poseCsvFilePath)
         {
-            fileName = config.fileName;
-            targetSaveFps = config.targetSaveFps;
+            ApplyConfiguration(config.targetSaveFps, poseCsvFilePath);
+        }
+
+        public void ApplyConfiguration(int saveFps, string poseCsvFilePath)
+        {
+            fileName = Path.GetFileName(poseCsvFilePath);
+            targetSaveFps = saveFps;
             configuredFilePath = poseCsvFilePath;
         }
 

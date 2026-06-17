@@ -35,7 +35,7 @@ namespace RealityLog.Recording
             {
                 return new CameraSideConfig
                 {
-                    imageDirectoryName = "left_camera",
+                    imageDirectoryName = "left_camera_raw",
                     metadataFileName = "left_camera_characteristics.json",
                     formatInfoFileName = "left_camera_image_format.json"
                 };
@@ -45,7 +45,7 @@ namespace RealityLog.Recording
             {
                 return new CameraSideConfig
                 {
-                    imageDirectoryName = "right_camera",
+                    imageDirectoryName = "right_camera_raw",
                     metadataFileName = "right_camera_characteristics.json",
                     formatInfoFileName = "right_camera_image_format.json"
                 };
@@ -68,7 +68,12 @@ namespace RealityLog.Recording
         {
             public bool enabled = true;
             public int targetSaveFps = 30;
-            public string fileName = "poses.csv";
+            public string hmdFileName = "hmd_poses.csv";
+            public string leftControllerFileName = "left_controller_poses.csv";
+            public string rightControllerFileName = "right_controller_poses.csv";
+
+            // Kept so older override JSON files fail soft instead of losing pose output entirely.
+            public string fileName = string.Empty;
         }
     }
 }

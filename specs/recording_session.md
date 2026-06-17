@@ -14,6 +14,8 @@ Camera-specific Unity/native boundaries are defined in `unity_camera_architectur
 
 Recorded YUV compatibility is defined in `yuv_storage_format.md`.
 
+The legacy downstream-facing output format is defined in `legacy_recording_format.md` and is the default recording layout unless a user configuration explicitly overrides it.
+
 ---
 
 # Recording Session Ownership
@@ -61,28 +63,31 @@ Legacy modules may keep directory-name setters temporarily for scene compatibili
 
 # Output Layout Compatibility
 
-The current configurable output layout is:
-
-> Legacy compatibility reference: see `legacy_recording_format.md`.
-
-The current configurable output layout is:
+The default output layout must preserve the original QuestRealityCapture layout documented in `legacy_recording_format.md`:
 
 ```text
 <session>/
-    left_camera/
-    right_camera/
-    left_camera_characteristics.json
-    right_camera_characteristics.json
+    hmd_poses.csv
+    left_controller_poses.csv
+    right_controller_poses.csv
+
+    left_camera_raw/
+    right_camera_raw/
+
     left_camera_image_format.json
     right_camera_image_format.json
+
+    left_camera_characteristics.json
+    right_camera_characteristics.json
+
     left_depth/
     right_depth/
+
     left_depth_descriptors.csv
     right_depth_descriptors.csv
-    poses.csv
 ```
 
-Changing default directory names or file names requires downstream compatibility review.
+Changing default directory names, file names, CSV columns, JSON keys, raw depth byte layout, or YUV byte layout requires downstream compatibility review.
 
 ---
 
@@ -96,13 +101,13 @@ create session paths
 apply config to modules
 start camera recorders
 start depth exporter
-start pose logger
+start pose loggers
 ```
 
 The default stop sequence is:
 
 ```text
-stop pose logger
+stop pose loggers
 stop depth exporter
 stop camera recorders
 close cameras when configured
@@ -136,9 +141,9 @@ recording_config.json
 
 On Android devices, this allows configuration override through adb by placing `recording_config.json` in the app persistent files directory. The exact package-specific absolute path is determined by Unity at runtime through `Application.persistentDataPath`.
 
-A missing external configuration file must not be treated as a startup error. Missing configuration should fall back to the assigned `TextAsset`, then to defaults that preserve the existing output layout.
+A missing external configuration file must not be treated as a startup error. Missing configuration should fall back to the assigned `TextAsset`, then to defaults that preserve the legacy output layout.
 
-Default values are authoritative for the current implementation. They do not match the legacy QuestRealityCapture layout documented in `legacy_recording_format.md`:
+Default values are authoritative and must match `legacy_recording_format.md` unless explicitly changed through compatibility review:
 
 ```text
 sessionNameFormat = yyyyMMdd_HHmmss
@@ -147,11 +152,11 @@ camera.targetSaveFps = 10
 camera.preferOpenByCameraId = true
 camera.allowJavaMetadataFallback = false
 camera.left.enabled = true
-camera.left.imageDirectoryName = left_camera
+camera.left.imageDirectoryName = left_camera_raw
 camera.left.metadataFileName = left_camera_characteristics.json
 camera.left.formatInfoFileName = left_camera_image_format.json
 camera.right.enabled = true
-camera.right.imageDirectoryName = right_camera
+camera.right.imageDirectoryName = right_camera_raw
 camera.right.metadataFileName = right_camera_characteristics.json
 camera.right.formatInfoFileName = right_camera_image_format.json
 depth.enabled = true
@@ -162,7 +167,9 @@ depth.leftDescriptorFileName = left_depth_descriptors.csv
 depth.rightDescriptorFileName = right_depth_descriptors.csv
 pose.enabled = true
 pose.targetSaveFps = 30
-pose.fileName = poses.csv
+pose.hmdFileName = hmd_poses.csv
+pose.leftControllerFileName = left_controller_poses.csv
+pose.rightControllerFileName = right_controller_poses.csv
 ```
 
 Packaged example/default JSON should remain available at:
@@ -185,13 +192,13 @@ Supported configuration fields include:
     "allowJavaMetadataFallback": false,
     "left": {
       "enabled": true,
-      "imageDirectoryName": "left_camera",
+      "imageDirectoryName": "left_camera_raw",
       "metadataFileName": "left_camera_characteristics.json",
       "formatInfoFileName": "left_camera_image_format.json"
     },
     "right": {
       "enabled": true,
-      "imageDirectoryName": "right_camera",
+      "imageDirectoryName": "right_camera_raw",
       "metadataFileName": "right_camera_characteristics.json",
       "formatInfoFileName": "right_camera_image_format.json"
     }
@@ -207,7 +214,9 @@ Supported configuration fields include:
   "pose": {
     "enabled": true,
     "targetSaveFps": 30,
-    "fileName": "poses.csv"
+    "hmdFileName": "hmd_poses.csv",
+    "leftControllerFileName": "left_controller_poses.csv",
+    "rightControllerFileName": "right_controller_poses.csv"
   }
 }
 ```

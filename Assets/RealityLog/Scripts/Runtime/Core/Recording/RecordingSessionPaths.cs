@@ -10,14 +10,14 @@ namespace RealityLog.Recording
             CameraPaths leftCamera,
             CameraPaths rightCamera,
             DepthPaths depth,
-            string poseCsvFilePath)
+            PosePaths pose)
         {
             SessionName = sessionName;
             RootDirectoryPath = rootDirectoryPath;
             LeftCamera = leftCamera;
             RightCamera = rightCamera;
             Depth = depth;
-            PoseCsvFilePath = poseCsvFilePath;
+            Pose = pose;
         }
 
         public string SessionName { get; }
@@ -25,7 +25,8 @@ namespace RealityLog.Recording
         public CameraPaths LeftCamera { get; }
         public CameraPaths RightCamera { get; }
         public DepthPaths Depth { get; }
-        public string PoseCsvFilePath { get; }
+        public PosePaths Pose { get; }
+        public string PoseCsvFilePath => Pose.HmdFilePath;
 
         public CameraPaths GetCameraPaths(RealityLog.Camera.CameraPosition position)
         {
@@ -44,6 +45,20 @@ namespace RealityLog.Recording
             public string ImageDirectoryPath { get; }
             public string MetadataFilePath { get; }
             public string FormatInfoFilePath { get; }
+        }
+
+        public sealed class PosePaths
+        {
+            public PosePaths(string hmdFilePath, string leftControllerFilePath, string rightControllerFilePath)
+            {
+                HmdFilePath = hmdFilePath;
+                LeftControllerFilePath = leftControllerFilePath;
+                RightControllerFilePath = rightControllerFilePath;
+            }
+
+            public string HmdFilePath { get; }
+            public string LeftControllerFilePath { get; }
+            public string RightControllerFilePath { get; }
         }
 
         public sealed class DepthPaths

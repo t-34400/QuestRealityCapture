@@ -114,7 +114,10 @@ namespace RealityLog.Recording
 
             config.pose ??= new RecordingSessionConfig.PoseConfig();
             config.pose.targetSaveFps = NormalizeFps(config.pose.targetSaveFps, "pose.targetSaveFps");
-            config.pose.fileName = NormalizeText(config.pose.fileName, "poses.csv", "pose.fileName");
+            config.pose.hmdFileName = NormalizeText(config.pose.hmdFileName, "hmd_poses.csv", "pose.hmdFileName");
+            config.pose.leftControllerFileName = NormalizeText(config.pose.leftControllerFileName, "left_controller_poses.csv", "pose.leftControllerFileName");
+            config.pose.rightControllerFileName = NormalizeText(config.pose.rightControllerFileName, "right_controller_poses.csv", "pose.rightControllerFileName");
+            config.pose.fileName = config.pose.fileName ?? string.Empty;
         }
 
         private static RecordingSessionConfig.CameraSideConfig NormalizeCameraSide(

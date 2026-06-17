@@ -15,16 +15,17 @@ namespace RealityLog.Recording
         [SerializeField] private NativeCameraRecorder[] cameraRecorders = new NativeCameraRecorder[0];
         [SerializeField] private DepthMapExporter? depthExporter = null;
         [SerializeField] private PoseLogger? poseLogger = null;
+        [SerializeField] private PoseLogger[] poseLoggers = new PoseLogger[0];
         [SerializeField] private bool startRecordingOnStart = false;
         [SerializeField] private bool closeCamerasOnStop = true;
         [SerializeField, Min(0f)] private float recordingToggleCooldownSeconds = 1f;
 
         private readonly RecordingSessionPathProvider pathProvider = new();
         private readonly List<NativeCameraRecorder> startedCameraRecorders = new();
+        private readonly List<PoseLogger> startedPoseLoggers = new();
         private RecordingSessionConfig? activeConfig;
         private RecordingSessionPaths? activePaths;
         private bool depthStarted;
-        private bool poseStarted;
         private bool recording;
         private float nextRecordingToggleRealtime;
 
@@ -140,9 +141,9 @@ namespace RealityLog.Recording
                 return false;
             }
 
-            if (config.pose.enabled && poseLogger == null)
+            if (config.pose.enabled && !HasPoseLoggers())
             {
-                Debug.LogError($"[{Constants.LOG_TAG}] Recording session pose logging is enabled, but no pose logger is assigned.");
+                Debug.LogError($"[{Constants.LOG_TAG}] Recording session pose logging is enabled, but no pose loggers are assigned.");
                 return false;
             }
 
@@ -162,6 +163,19 @@ namespace RealityLog.Recording
             return false;
         }
 
+        private bool HasPoseLoggers()
+        {
+            foreach (var logger in GetConfiguredPoseLoggers())
+            {
+                if (logger != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private void ConfigureModules(RecordingSessionConfig config, RecordingSessionPaths paths)
         {
             foreach (var recorder in cameraRecorders)
@@ -170,7 +184,45 @@ namespace RealityLog.Recording
             }
 
             depthExporter?.ApplyConfiguration(config.depth, paths.Depth);
-            poseLogger?.ApplyConfiguration(config.pose, paths.PoseCsvFilePath);
+            ConfigurePoseLoggers(config.pose, paths.Pose);
+        }
+
+
+        private void ConfigurePoseLoggers(RecordingSessionConfig.PoseConfig config, RecordingSessionPaths.PosePaths paths)
+        {
+            foreach (var logger in GetConfiguredPoseLoggers())
+            {
+                if (logger == null)
+                {
+                    continue;
+                }
+
+                logger.ApplyConfiguration(config.targetSaveFps, ResolvePoseFilePath(logger, paths));
+            }
+        }
+
+        private IEnumerable<PoseLogger?> GetConfiguredPoseLoggers()
+        {
+            if (poseLoggers != null)
+            {
+                foreach (var logger in poseLoggers)
+                {
+                    yield return logger;
+                }
+            }
+
+            yield return poseLogger;
+        }
+
+        private static string ResolvePoseFilePath(PoseLogger logger, RecordingSessionPaths.PosePaths paths)
+        {
+            // OVRPlugin.Node serializes as numeric values in Unity scenes; these are the legacy scene values.
+            return (int)logger.Node switch
+            {
+                12 => paths.LeftControllerFilePath,
+                13 => paths.RightControllerFilePath,
+                _ => paths.HmdFilePath
+            };
         }
 
         private bool StartCameraRecorders(RecordingSessionConfig config)
@@ -221,12 +273,21 @@ namespace RealityLog.Recording
                 return true;
             }
 
-            if (!poseLogger!.TryStartLogging())
+            startedPoseLoggers.Clear();
+            foreach (var logger in GetConfiguredPoseLoggers())
             {
-                return false;
+                if (logger == null)
+                {
+                    continue;
+                }
+
+                startedPoseLoggers.Add(logger);
+                if (!logger.TryStartLogging())
+                {
+                    return false;
+                }
             }
 
-            poseStarted = true;
             return true;
         }
 
@@ -234,11 +295,12 @@ namespace RealityLog.Recording
         {
             var success = true;
 
-            if (poseStarted && poseLogger != null)
+            for (var i = startedPoseLoggers.Count - 1; i >= 0; --i)
             {
-                poseLogger.StopLogging();
-                poseStarted = false;
+                startedPoseLoggers[i].StopLogging();
             }
+
+            startedPoseLoggers.Clear();
 
             if (depthStarted && depthExporter != null)
             {
@@ -266,7 +328,6 @@ namespace RealityLog.Recording
             activeConfig = null;
             activePaths = null;
             depthStarted = false;
-            poseStarted = false;
         }
 
         private void Start()

@@ -17,9 +17,9 @@ namespace RealityLog.Recording
             var leftCamera = CreateCameraPaths(rootDirectoryPath, config.camera.left);
             var rightCamera = CreateCameraPaths(rootDirectoryPath, config.camera.right);
             var depth = CreateDepthPaths(rootDirectoryPath, config.depth);
-            var poseCsvFilePath = Path.Combine(rootDirectoryPath, config.pose.fileName);
+            var pose = CreatePosePaths(rootDirectoryPath, config.pose);
 
-            return new RecordingSessionPaths(sessionName, rootDirectoryPath, leftCamera, rightCamera, depth, poseCsvFilePath);
+            return new RecordingSessionPaths(sessionName, rootDirectoryPath, leftCamera, rightCamera, depth, pose);
         }
 
         private static RecordingSessionPaths.CameraPaths CreateCameraPaths(
@@ -33,6 +33,16 @@ namespace RealityLog.Recording
                 imageDirectoryPath,
                 Path.Combine(rootDirectoryPath, config.metadataFileName),
                 Path.Combine(rootDirectoryPath, config.formatInfoFileName));
+        }
+
+        private static RecordingSessionPaths.PosePaths CreatePosePaths(
+            string rootDirectoryPath,
+            RecordingSessionConfig.PoseConfig config)
+        {
+            return new RecordingSessionPaths.PosePaths(
+                Path.Combine(rootDirectoryPath, config.hmdFileName),
+                Path.Combine(rootDirectoryPath, config.leftControllerFileName),
+                Path.Combine(rootDirectoryPath, config.rightControllerFileName));
         }
 
         private static RecordingSessionPaths.DepthPaths CreateDepthPaths(
