@@ -1,6 +1,6 @@
 # Legacy Recording Format
 
-Authoritative description of the original QuestRealityCapture output format that downstream tooling may depend on.
+Authoritative description of the QuestRealityCapture recording output format that downstream tooling depends on.
 
 ## Session Layout
 

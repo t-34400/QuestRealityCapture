@@ -4,7 +4,7 @@
 
 This specification defines Unity-side camera recording architecture for RealityLog.
 
-It exists to keep Unity responsibilities separate from native camera recording responsibilities during the migration from Kotlin/Camera2 to Android NDK.
+It exists to keep Unity responsibilities separate from native camera recording responsibilities while maintaining a clear separation between Unity responsibilities and native camera responsibilities.
 
 ---
 
@@ -30,7 +30,7 @@ Unity is responsible for:
 * passing recording configuration to the recorder implementation
 * driving recorder lifecycle from scene/UI behavior
 * surfacing native errors to developers or users
-* preserving a clear boundary between legacy Java/Kotlin recording and native recording
+* preserving a clear boundary between Unity orchestration and native recording
 
 Unity must not duplicate native frame persistence logic when using the native recorder.
 

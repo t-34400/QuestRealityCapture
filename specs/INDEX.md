@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the navigation index for RealityLog specifications.
+This document is the navigation index for QuestRealityCapture specifications.
 
 This document must not define behavioral requirements.
 
@@ -36,7 +36,7 @@ Read `COMMON_RULES.md` before reading any other specification.
 ## Unity Camera Architecture
 
 * `unity_camera_architecture.md`
-  * Defines Unity-side responsibilities, native bridge expectations, permission ownership, legacy Java/Kotlin separation, and scene-facing recorder lifecycle expectations.
+  * Defines Unity-side responsibilities, native bridge expectations, permission ownership, Unity/native responsibility boundaries, and scene-facing recorder lifecycle expectations.
   * Read before modifying Unity camera scripts or introducing Unity-to-native integration code.
 ## Recording Session
 
@@ -46,4 +46,4 @@ Read `COMMON_RULES.md` before reading any other specification.
 
 
 * `legacy_recording_format.md`
-  * Documents the original QuestRealityCapture output layout and file formats for compatibility review.
+  * Defines the canonical QuestRealityCapture recording output layout and compatibility requirements.

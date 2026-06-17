@@ -57,7 +57,7 @@ The native plugin may report permission-related failures, but must not request p
 
 The native plugin exposes a C ABI for Unity interop.
 
-Current exported functions are session-handle based:
+The exported functions are session-handle based:
 
 ```c
 QrcCamera_CreateSession(&handle);
