@@ -118,14 +118,22 @@ Calling code should treat native result codes as authoritative operation results
 
 Left/right camera selection should be based on Meta camera metadata when available.
 
-The native plugin owns native camera metadata lookup for the native recorder path. `QrcCamera_GetCameraMetadataJson(position)` should return a Unity-compatible `CameraMetadata` JSON object for the requested left/right position. It should read standard NDK camera characteristics directly and should resolve Quest vendor keys by name when the runtime exposes native vendor tag lookup. The Quest vendor keys are:
+The native plugin owns native camera metadata lookup for the native recorder path. `QrcCamera_GetCameraMetadataJson(position)` should return a Unity-compatible `CameraMetadata` JSON object for the requested left/right position. It should read standard NDK camera characteristics directly and should resolve Quest vendor keys by descriptor first, then by name when the runtime exposes native vendor tag lookup. The Quest vendor keys are:
 
 ```text
-com.meta.extra_metadata.position
-com.meta.extra_metadata.camera_source
+com.meta.extra_metadata.camera_source = 0x80004d00
+com.meta.extra_metadata.position = 0x80004d01
 ```
 
-When named vendor tag lookup is not available at build/runtime, the native plugin may include raw vendor tag diagnostics and fall back to camera-id order for position selection, but this fallback must remain visible in metadata diagnostics.
+Native left/right selection must use passthrough camera metadata:
+
+```text
+camera_source == 0
+position == 0 for left
+position == 1 for right
+```
+
+The native recorder path must not silently fall back to camera-id order for passthrough camera selection. If the Quest passthrough vendor metadata cannot be resolved for the requested side, native metadata lookup and `QrcCamera_OpenSession(position)` should fail with diagnostics rather than selecting a non-passthrough camera.
 
 ---
 
