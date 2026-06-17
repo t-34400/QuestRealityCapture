@@ -174,6 +174,18 @@ const char* timestampSourceName(uint8_t value) {
     }
 }
 
+const char* metadataTypeName(uint8_t value) {
+    switch (value) {
+        case ACAMERA_TYPE_BYTE: return "BYTE";
+        case ACAMERA_TYPE_INT32: return "INT32";
+        case ACAMERA_TYPE_FLOAT: return "FLOAT";
+        case ACAMERA_TYPE_INT64: return "INT64";
+        case ACAMERA_TYPE_DOUBLE: return "DOUBLE";
+        case ACAMERA_TYPE_RATIONAL: return "RATIONAL";
+        default: return "UNKNOWN";
+    }
+}
+
 template <typename T>
 void writeNumericArray(std::ostringstream& os, const T* values, uint32_t count) {
     os << "[";
@@ -240,6 +252,10 @@ public:
         queue_.push_back(std::move(job));
         cv_.notify_one();
         return true;
+    }
+
+    int64_t ioErrorCount() const {
+        return ioErrors_.load();
     }
 
 private:
@@ -417,7 +433,7 @@ public:
         outStats->receivedFrameCount = receivedFrameCount_.load();
         outStats->savedFrameCount = savedFrameCount_.load();
         outStats->droppedFrameCount = droppedFrameCount_.load();
-        outStats->ioErrorCount = 0;
+        outStats->ioErrorCount = writer_.ioErrorCount();
         outStats->lastImageTimestampNs = lastImageTimestampNs_.load();
         outStats->lastSavedTimestampNs = lastSavedTimestampNs_.load();
         return QRC_CAMERA_OK;
@@ -564,19 +580,28 @@ private:
         return function;
     }
 
-    bool readInt32MetadataByTag(ACameraMetadata* metadata, uint32_t tag, int& value) const {
+    bool readIntegralMetadataByTag(ACameraMetadata* metadata, uint32_t tag, int& value) const {
         ACameraMetadata_const_entry entry{};
-        if (ACameraMetadata_getConstEntry(metadata, tag, &entry) != ACAMERA_OK) {
+        if (ACameraMetadata_getConstEntry(metadata, tag, &entry) != ACAMERA_OK || entry.count <= 0) {
             return false;
         }
-        if (entry.type != ACAMERA_TYPE_INT32 || entry.count <= 0) {
-            return false;
+
+        switch (entry.type) {
+            case ACAMERA_TYPE_BYTE:
+                value = static_cast<int>(entry.data.u8[0]);
+                return true;
+            case ACAMERA_TYPE_INT32:
+                value = static_cast<int>(entry.data.i32[0]);
+                return true;
+            case ACAMERA_TYPE_INT64:
+                value = static_cast<int>(entry.data.i64[0]);
+                return true;
+            default:
+                return false;
         }
-        value = entry.data.i32[0];
-        return true;
     }
 
-    bool readInt32MetadataByName(ACameraMetadata* metadata, const char* name, int& value) const {
+    bool readIntegralMetadataByName(ACameraMetadata* metadata, const char* name, int& value) const {
         auto* getTagFromName = getTagFromNameFunction();
         if (!getTagFromName) {
             return false;
@@ -586,20 +611,20 @@ private:
         if (getTagFromName(metadata, name, &tag) != ACAMERA_OK) {
             return false;
         }
-        return readInt32MetadataByTag(metadata, tag, value);
+        return readIntegralMetadataByTag(metadata, tag, value);
     }
 
     bool tryReadQuestVendorHints(ACameraMetadata* metadata, int& cameraPositionId, int& cameraSource) const {
         int source = -1;
         int position = -1;
-        bool sourceResolved = readInt32MetadataByTag(metadata, kQuestCameraSourceTag, source);
-        bool positionResolved = readInt32MetadataByTag(metadata, kQuestCameraPositionTag, position);
+        bool sourceResolved = readIntegralMetadataByTag(metadata, kQuestCameraSourceTag, source);
+        bool positionResolved = readIntegralMetadataByTag(metadata, kQuestCameraPositionTag, position);
 
         if (!sourceResolved) {
-            sourceResolved = readInt32MetadataByName(metadata, "com.meta.extra_metadata.camera_source", source);
+            sourceResolved = readIntegralMetadataByName(metadata, "com.meta.extra_metadata.camera_source", source);
         }
         if (!positionResolved) {
-            positionResolved = readInt32MetadataByName(metadata, "com.meta.extra_metadata.position", position);
+            positionResolved = readIntegralMetadataByName(metadata, "com.meta.extra_metadata.position", position);
         }
 
         if (sourceResolved) {
@@ -609,6 +634,83 @@ private:
             cameraPositionId = position;
         }
         return sourceResolved && positionResolved;
+    }
+
+    std::string describeQuestVendorLookup(ACameraMetadata* metadata) const {
+        std::ostringstream os;
+        int32_t tagCount = 0;
+        const uint32_t* tags = nullptr;
+        const bool hasAllTags = ACameraMetadata_getAllTags(metadata, &tagCount, &tags) == ACAMERA_OK && tags != nullptr;
+        os << "availableTagCount=" << (hasAllTags ? tagCount : -1);
+
+        appendQuestVendorTagDiagnostic(os, metadata, "camera_source_descriptor", kQuestCameraSourceTag);
+        appendQuestVendorTagDiagnostic(os, metadata, "position_descriptor", kQuestCameraPositionTag);
+
+        auto* getTagFromName = getTagFromNameFunction();
+        if (!getTagFromName) {
+            os << ", nameLookup=unavailable";
+            return os.str();
+        }
+
+        appendQuestVendorNameDiagnostic(os, metadata, getTagFromName, "camera_source_name", "com.meta.extra_metadata.camera_source");
+        appendQuestVendorNameDiagnostic(os, metadata, getTagFromName, "position_name", "com.meta.extra_metadata.position");
+        return os.str();
+    }
+
+    void appendQuestVendorNameDiagnostic(
+        std::ostringstream& os,
+        ACameraMetadata* metadata,
+        GetTagFromNameFn getTagFromName,
+        const char* label,
+        const char* name) const {
+        uint32_t resolvedTag = 0;
+        const camera_status_t status = getTagFromName(metadata, name, &resolvedTag);
+        os << ", " << label << "={lookupStatus:" << status;
+        if (status == ACAMERA_OK) {
+            os << ", resolvedTag:" << resolvedTag;
+            appendQuestVendorEntryDiagnostic(os, metadata, resolvedTag);
+        }
+        os << "}";
+    }
+
+    void appendQuestVendorTagDiagnostic(
+        std::ostringstream& os,
+        ACameraMetadata* metadata,
+        const char* label,
+        uint32_t tag) const {
+        os << ", " << label << "={tag:" << tag;
+        appendQuestVendorEntryDiagnostic(os, metadata, tag);
+        os << "}";
+    }
+
+    void appendQuestVendorEntryDiagnostic(std::ostringstream& os, ACameraMetadata* metadata, uint32_t tag) const {
+        ACameraMetadata_const_entry entry{};
+        const camera_status_t status = ACameraMetadata_getConstEntry(metadata, tag, &entry);
+        os << ", entryStatus:" << status;
+        if (status != ACAMERA_OK) {
+            return;
+        }
+
+        os << ", type:" << metadataTypeName(entry.type) << ", count:" << entry.count;
+        if (entry.count <= 0) {
+            return;
+        }
+
+        os << ", firstValue:";
+        switch (entry.type) {
+            case ACAMERA_TYPE_BYTE:
+                os << static_cast<int>(entry.data.u8[0]);
+                break;
+            case ACAMERA_TYPE_INT32:
+                os << entry.data.i32[0];
+                break;
+            case ACAMERA_TYPE_INT64:
+                os << entry.data.i64[0];
+                break;
+            default:
+                os << "non-integral";
+                break;
+        }
     }
 
     bool findPassthroughCameraIdForPositionLocked(
@@ -626,6 +728,18 @@ private:
             int cameraPositionId = -1;
             int cameraSource = -1;
             const bool resolved = tryReadQuestVendorHints(metadata, cameraPositionId, cameraSource);
+            if (!resolved) {
+                QRC_LOGW(
+                    "Quest passthrough vendor metadata unresolved for cameraId=%s: %s",
+                    ids[i].c_str(),
+                    describeQuestVendorLookup(metadata).c_str());
+            } else {
+                QRC_LOGI(
+                    "Quest passthrough vendor metadata for cameraId=%s: cameraSource=%d, position=%d",
+                    ids[i].c_str(),
+                    cameraSource,
+                    cameraPositionId);
+            }
             ACameraMetadata_free(metadata);
 
             if (resolved && cameraSource == 0 && cameraPositionId == requestedPosition) {
@@ -636,6 +750,10 @@ private:
                 return true;
             }
         }
+        QRC_LOGE(
+            "No Quest passthrough camera matched requested position %d after scanning %zu camera(s)",
+            requestedPosition,
+            ids.size());
         return false;
     }
 

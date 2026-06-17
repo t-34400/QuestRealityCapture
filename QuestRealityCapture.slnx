@@ -90,8 +90,8 @@
   <Project Path="Unity.XR.OpenXR.Features.MetaQuestSupport.Editor.csproj" />
   <Project Path="meta.xr.ai.mcpbridge.telemetry.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Runtime.Shared.csproj" />
-  <Project Path="MetaXRSimulatorCore.Editor.csproj" />
   <Project Path="Meta.XR.MultiplayerBlocks.Shared.Editor.csproj" />
+  <Project Path="MetaXRSimulatorCore.Editor.csproj" />
   <Project Path="Unity.InputSystem.ForUI.csproj" />
   <Project Path="Oculus.Interaction.Editor.UnityXR.csproj" />
   <Project Path="Meta.XR.Editor.RemoteContent.csproj" />
