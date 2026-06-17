@@ -29,6 +29,11 @@ namespace RealityLog.Camera
 
         public NativeCameraStats LastStats { get; private set; }
 
+        public void SetDataDirectoryName(string value)
+        {
+            dataDirectoryName = value;
+        }
+
         public bool Initialize()
         {
             if (initialized)

@@ -130,6 +130,8 @@ Prefer explicit calls for:
 * recording stop
 * camera close
 
+Scene-facing components may expose UnityEvent-friendly methods that forward to the recorder lifecycle, but they must not call native bridge functions directly.
+
 This separation is required to support native lifecycle error handling and compatibility validation.
 
 ---
