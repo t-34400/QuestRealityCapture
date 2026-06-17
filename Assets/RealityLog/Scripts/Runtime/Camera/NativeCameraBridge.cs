@@ -76,6 +76,9 @@ namespace RealityLog.Camera
 
         [DllImport(LibraryName)]
         private static extern IntPtr QrcCamera_GetCameraIdListJson();
+
+        [DllImport(LibraryName)]
+        private static extern IntPtr QrcCamera_GetCameraMetadataJson(NativeCameraPosition position);
 #endif
 
         public static NativeCameraResult Initialize(
@@ -179,6 +182,15 @@ namespace RealityLog.Camera
             return PtrToString(QrcCamera_GetCameraIdListJson());
 #else
             return "[]";
+#endif
+        }
+
+        public static string GetCameraMetadataJson(NativeCameraPosition position)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return PtrToString(QrcCamera_GetCameraMetadataJson(position));
+#else
+            return string.Empty;
 #endif
         }
 

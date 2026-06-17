@@ -48,6 +48,7 @@ QrcCameraResult QrcCamera_GetStats(QrcCameraStats* outStats);
 const char* QrcCamera_GetLastError(void);
 const char* QrcCamera_GetLastOpenedCameraId(void);
 const char* QrcCamera_GetCameraIdListJson(void);
+const char* QrcCamera_GetCameraMetadataJson(QrcCameraPosition position);
 
 #ifdef __cplusplus
 }

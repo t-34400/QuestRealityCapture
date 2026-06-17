@@ -30,6 +30,7 @@ QrcCamera_Close();
 QrcCamera_GetStats(&stats);
 QrcCamera_GetLastError();
 QrcCamera_GetCameraIdListJson();
+QrcCamera_GetCameraMetadataJson(position); // 0=left, 1=right
 ```
 
 ## 保存形式
@@ -75,8 +76,15 @@ unix_ms = baseUnixTimeMs + (imageTimestampNs - baseMonoTimeNs) / 1_000_000
 }
 ```
 
-## 注意
+## Native metadata
 
-NDK単体ではMetaのvendor metadata名からleft/right passthrough cameraを安定判定する経路が限定されるため、初期版では `QrcCamera_OpenById()` を推奨します。`QrcCamera_Open(position)` はcameraId順のfallbackです。
+`QrcCamera_GetCameraMetadataJson(position)` は、NDK Camera2 の標準 camera characteristics を Unity の `CameraMetadata` 互換 JSON として返します。
 
-Unity側で `QrcCamera_GetCameraIdListJson()` を呼んで実機のIDを確認し、既存Kotlin版と同じIDを `QrcCamera_OpenById()` に渡す運用が安全です。
+`ACameraMetadata_getTagFromName()` が実行環境で利用できる場合は、以下の Quest vendor metadata を native 側で名前解決します。
+
+```text
+com.meta.extra_metadata.position
+com.meta.extra_metadata.camera_source
+```
+
+名前解決できない環境では `nativeMetadata.questVendorKeysResolved=false` と raw vendor tag dump を出力し、left/right は cameraId 順 fallback になります。この fallback は実機で確認してください。

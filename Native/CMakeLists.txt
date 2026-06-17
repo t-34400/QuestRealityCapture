@@ -23,4 +23,5 @@ target_link_libraries(qrc_camera_native PRIVATE
     mediandk
     android
     log
+    dl
 )

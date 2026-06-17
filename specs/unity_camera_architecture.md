@@ -86,7 +86,9 @@ The current Unity implementation keeps this boundary in `CameraPermissionManager
 
 # Camera Metadata
 
-Unity may use Java/Kotlin support code to read Meta camera metadata, including camera source and camera position.
+The native recorder path should use native camera metadata lookup rather than Java/Kotlin metadata lookup.
+
+Java/Kotlin support code may remain as a legacy or explicit fallback path, but it must not be the default dependency of `NativeCameraRecorder`.
 
 Metadata retrieval must remain separate from permission acquisition when practical.
 
@@ -97,6 +99,15 @@ CameraMetadataProvider
 ```
 
 The Unity metadata provider is responsible for returning camera metadata for a requested `CameraPosition`. Metadata-derived camera IDs should be passed to the native plugin through `QrcCamera_OpenById()` when available.
+
+Recommended native path:
+
+```text
+NativeCameraRecorder
+    -> NativeCameraMetadataProvider
+        -> NativeCameraBridge
+            -> QrcCamera_GetCameraMetadataJson(position)
+```
 
 ---
 

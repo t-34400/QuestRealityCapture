@@ -7,7 +7,8 @@ namespace RealityLog.Camera
     public class NativeCameraRecorder : MonoBehaviour, ICameraRecorder
     {
         [SerializeField] private CameraPermissionManager cameraPermissionManager = default!;
-        [SerializeField] private JavaCameraMetadataProvider cameraMetadataProvider = default!;
+        [SerializeField] private MonoBehaviour cameraMetadataProvider = default!;
+        [SerializeField] private bool allowJavaMetadataFallback = false;
         [SerializeField] private CameraPosition cameraPosition = CameraPosition.Left;
         [SerializeField] private string dataDirectoryName = string.Empty;
         [SerializeField] private string imageSubdirName = "left_camera";
@@ -180,27 +181,43 @@ namespace RealityLog.Camera
             Close();
         }
 
-        private CameraMetadata? ResolveSelectedMetadata()
-        {
-            return ResolveMetadataProvider()?.GetMetadata(cameraPosition);
-        }
-
         private ICameraMetadataProvider? ResolveMetadataProvider()
         {
-            if (cameraMetadataProvider != null)
+            if (cameraMetadataProvider is ICameraMetadataProvider configuredProvider
+                && (allowJavaMetadataFallback || !(cameraMetadataProvider is JavaCameraMetadataProvider)))
             {
-                return cameraMetadataProvider;
+                return configuredProvider;
             }
 
+            var nativeProvider = GetComponent<NativeCameraMetadataProvider>()
+                ?? gameObject.AddComponent<NativeCameraMetadataProvider>();
+            cameraMetadataProvider = nativeProvider;
+            return nativeProvider;
+        }
+
+        private CameraMetadata? ResolveSelectedMetadata()
+        {
+            var metadata = ResolveMetadataProvider()?.GetMetadata(cameraPosition);
+            if (metadata != null || !allowJavaMetadataFallback)
+            {
+                return metadata;
+            }
+
+            var javaProvider = ResolveJavaMetadataProvider();
+            return javaProvider?.GetMetadata(cameraPosition);
+        }
+
+        private ICameraMetadataProvider? ResolveJavaMetadataProvider()
+        {
             if (cameraPermissionManager == null)
             {
                 return null;
             }
 
-            cameraMetadataProvider = cameraPermissionManager.GetComponent<JavaCameraMetadataProvider>()
+            var javaProvider = cameraPermissionManager.GetComponent<JavaCameraMetadataProvider>()
                 ?? cameraPermissionManager.gameObject.AddComponent<JavaCameraMetadataProvider>();
-            cameraMetadataProvider.Configure(cameraPermissionManager);
-            return cameraMetadataProvider;
+            javaProvider.Configure(cameraPermissionManager);
+            return javaProvider;
         }
 
         private static NativeCameraPosition ToNativePosition(CameraPosition position)

@@ -71,6 +71,7 @@ QrcCamera_GetStats(&stats);
 QrcCamera_GetLastError();
 QrcCamera_GetLastOpenedCameraId();
 QrcCamera_GetCameraIdListJson();
+QrcCamera_GetCameraMetadataJson(position);
 ```
 
 Changes to exported signatures require Unity bridge review and compatibility review.
@@ -107,7 +108,16 @@ Calling code should treat native result codes as authoritative operation results
 
 `QrcCamera_Open(position)` may be used only as a fallback unless stable left/right mapping is specified.
 
-Left/right camera selection should be based on Meta camera metadata when available to Unity or supporting Java/Kotlin code.
+Left/right camera selection should be based on Meta camera metadata when available.
+
+The native plugin owns native camera metadata lookup for the native recorder path. `QrcCamera_GetCameraMetadataJson(position)` should return a Unity-compatible `CameraMetadata` JSON object for the requested left/right position. It should read standard NDK camera characteristics directly and should resolve Quest vendor keys by name when the runtime exposes native vendor tag lookup. The Quest vendor keys are:
+
+```text
+com.meta.extra_metadata.position
+com.meta.extra_metadata.camera_source
+```
+
+When named vendor tag lookup is not available at build/runtime, the native plugin may include raw vendor tag diagnostics and fall back to camera-id order for position selection, but this fallback must remain visible in metadata diagnostics.
 
 ---
 
