@@ -1691,6 +1691,7 @@ GameObject:
   - component: {fileID: 1457542674}
   - component: {fileID: 1457542675}
   - component: {fileID: 1457542676}
+  - component: {fileID: 1457542677}
   m_Layer: 0
   m_Name: PassthroughCamera
   m_TagString: Untagged
@@ -1727,6 +1728,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b0c06f85669a6374ba47e388cdbf7d7b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: RealityLog::RealityLog.Camera.CameraPermissionManager
+  requestAndroidCameraPermission: 1
+  requestHeadsetCameraPermission: 1
+  initializeLegacyJavaCameraManager: 1
 --- !u!114 &1457542676
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1739,6 +1743,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 77308a45a2629f64387ef267c1c948d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: RealityLog::RealityLog.Camera.NativeCameraMetadataProvider
+--- !u!114 &1457542677
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1457542673}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c654f22e70de7e4b8cf2b874aaadc05, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RealityLog::RealityLog.Camera.CameraPermissionGrantedUnityEvent
+  cameraPermissionManager: {fileID: 1457542675}
+  permissionGranted:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 1963279085}
+        m_TargetAssemblyTypeName: AnimationParameterSetter, Assembly-CSharp
+        m_MethodName: SetBool
+        m_Mode: 6
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 1
+        m_CallState: 2
 --- !u!1 &1963279078
 GameObject:
   m_ObjectHideFlags: 0
@@ -1817,7 +1849,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ee10491ef6d5d1d49a270cf6b09bdc19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _enableMipmapping: 0
+  _mipmapMode: 0
   _dynamicResolution: 1
   _redrawResolutionThreshold: 2147483647
   rectTransform: {fileID: 1963279079}
@@ -1825,13 +1857,13 @@ MonoBehaviour:
   manualRedraw: 0
   renderInterval: 1
   renderIntervalFrameOffset: 0
-  expensive: 0
+  superSample: 0
   layer: 5
   opacity: 2
   shape: 0
   curveRadius: 1
   overlapMask: 0
-  overlayType: 2
+  compositionMode: 2
   _overlayEnabled: 1
 --- !u!114 &1963279082
 MonoBehaviour:

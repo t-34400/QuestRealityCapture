@@ -73,6 +73,11 @@ namespace RealityLog.Camera
                 return true;
             }
 
+            if (!EnsureCameraPermission())
+            {
+                return false;
+            }
+
             var metadata = ResolveSelectedMetadata();
             if (metadata == null)
             {
@@ -217,6 +222,29 @@ namespace RealityLog.Camera
         {
             Close();
             DestroySession();
+        }
+
+        private bool EnsureCameraPermission()
+        {
+            if (cameraPermissionManager == null)
+            {
+                cameraPermissionManager = FindObjectOfType<CameraPermissionManager>();
+            }
+
+            if (cameraPermissionManager == null)
+            {
+                Debug.LogError($"[{Constants.LOG_TAG}] CameraPermissionManager is not assigned for {cameraPosition}.");
+                return false;
+            }
+
+            if (cameraPermissionManager.HasRequiredCameraPermission)
+            {
+                return true;
+            }
+
+            cameraPermissionManager.RequestCameraPermissionIfNeeded();
+            Debug.LogError($"[{Constants.LOG_TAG}] Camera permission has not been granted for {cameraPosition}.");
+            return false;
         }
 
         private bool EnsureSession()
