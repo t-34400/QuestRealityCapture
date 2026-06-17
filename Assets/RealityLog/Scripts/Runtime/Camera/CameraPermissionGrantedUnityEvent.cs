@@ -1,4 +1,4 @@
-# nullable enable
+#nullable enable
 
 using UnityEngine;
 using UnityEngine.Events;
@@ -12,22 +12,21 @@ namespace RealityLog.Camera
 
         private void Start()
         {
-            var cmInstance = cameraPermissionManager.CameraManagerJavaInstance;
-            if (cmInstance != null)
+            if (cameraPermissionManager.HasRequiredCameraPermission)
             {
                 permissionGranted.Invoke();
                 return;
             }
 
-            cameraPermissionManager.CameraManagerInstantiated += OnCameraManagerInstantiated;
+            cameraPermissionManager.CameraPermissionGranted += OnCameraPermissionGranted;
         }
 
         private void OnDestroy()
-        {            
-            cameraPermissionManager.CameraManagerInstantiated -= OnCameraManagerInstantiated;
+        {
+            cameraPermissionManager.CameraPermissionGranted -= OnCameraPermissionGranted;
         }
 
-        private void OnCameraManagerInstantiated(AndroidJavaObject _)
+        private void OnCameraPermissionGranted()
         {
             permissionGranted.Invoke();
         }

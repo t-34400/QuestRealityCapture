@@ -1,4 +1,4 @@
-# nullable enable
+#nullable enable
 
 using System.Collections.Generic;
 using UnityEngine;
@@ -15,6 +15,7 @@ namespace RealityLog.Camera
         private const string CLOSE_METHOD_NAME = "close";
 
         [SerializeField] private CameraPermissionManager cameraPermissionManager = default!;
+        [SerializeField] private JavaCameraMetadataProvider cameraMetadataProvider = default!;
         [SerializeField] private List<SurfaceProviderBase> surfaceProviders = new();
         [SerializeField] private CameraPosition cameraPosition = CameraPosition.Left;
         [SerializeField] private CameraUseCase useCase = CameraUseCase.STILL_CAPTURE;
@@ -60,13 +61,7 @@ namespace RealityLog.Camera
                 return;
             }
 
-            var metaData = cameraPosition switch
-            {
-                CameraPosition.Left => cameraPermissionManager.LeftCameraMetaData,
-                CameraPosition.Right => cameraPermissionManager.RightCameraMetaData,
-                _ => null
-            };
-
+            var metaData = ResolveMetadataProvider()?.GetMetadata(cameraPosition);
             if (metaData == null)
             {
                 return;
@@ -110,13 +105,25 @@ namespace RealityLog.Camera
             SessionManagerJavaInstance?.Dispose();
             SessionManagerJavaInstance = null;
         }
-# endif
 
-        enum CameraPosition
+        private ICameraMetadataProvider? ResolveMetadataProvider()
         {
-            Left,
-            Right
+            if (cameraMetadataProvider != null)
+            {
+                return cameraMetadataProvider;
+            }
+
+            if (cameraPermissionManager == null)
+            {
+                return null;
+            }
+
+            cameraMetadataProvider = cameraPermissionManager.GetComponent<JavaCameraMetadataProvider>()
+                ?? cameraPermissionManager.gameObject.AddComponent<JavaCameraMetadataProvider>();
+            cameraMetadataProvider.Configure(cameraPermissionManager);
+            return cameraMetadataProvider;
         }
+# endif
 
         enum CameraUseCase
         {

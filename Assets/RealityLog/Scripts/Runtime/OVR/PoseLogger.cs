@@ -1,7 +1,8 @@
-# nullable enable
+#nullable enable
 
 using System;
 using System.IO;
+using RealityLog.Recording;
 using UnityEngine;
 
 namespace RealityLog.OVR
@@ -12,7 +13,7 @@ namespace RealityLog.OVR
         Raw
     }
 
-    class PoseLogger : MonoBehaviour
+    public class PoseLogger : MonoBehaviour
     {
         private static readonly string[] HEADER = new string[]
             {
@@ -23,18 +24,21 @@ namespace RealityLog.OVR
 
         [SerializeField] private OVRPlugin.Node node = OVRPlugin.Node.Head;
         [SerializeField] private PoseStateMode mode = PoseStateMode.Immediate;
-        [SerializeField] private string fileName = "poses.csv";
+        [SerializeField] private string fileName = "hmd_poses.csv";
         [SerializeField] private string directoryName = "";
+        [SerializeField] private int targetSaveFps = 0;
         [SerializeField] private bool startLoggingOnStart = false;
         [Header("Optional")]
         [SerializeField] private Transform trackingSpace = default!;
 
         private CsvWriter? writer = null;
+        private string? configuredFilePath;
 
         private double baseOvrTimeSec;
         private long baseUnixTimeMs;
 
         private double latestTimestamp;
+        private double? latestSavedTimestamp;
 
         public string DirectoryName
         {
@@ -42,18 +46,41 @@ namespace RealityLog.OVR
             set => directoryName = value;
         }
 
+        public OVRPlugin.Node Node => node;
+
+        public void ApplyConfiguration(RecordingSessionConfig.PoseConfig config, string poseCsvFilePath)
+        {
+            ApplyConfiguration(config.targetSaveFps, poseCsvFilePath);
+        }
+
+        public void ApplyConfiguration(int saveFps, string poseCsvFilePath)
+        {
+            fileName = Path.GetFileName(poseCsvFilePath);
+            targetSaveFps = saveFps;
+            configuredFilePath = poseCsvFilePath;
+        }
+
         public void StartLogging()
+        {
+            TryStartLogging();
+        }
+
+        public bool TryStartLogging()
         {
             try
             {
                 StopLogging();
-                var filePath = Path.Combine(Application.persistentDataPath, DirectoryName, fileName);
+                latestTimestamp = 0;
+                latestSavedTimestamp = null;
+                var filePath = configuredFilePath ?? Path.Combine(Application.persistentDataPath, DirectoryName, fileName);
                 writer = new CsvWriter(filePath, HEADER);
+                return true;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[{Constants.LOG_TAG}] Failed to create CsvWriter: {ex.Message}");
+                Debug.LogError($"[{Constants.LOG_TAG}] Failed to start pose logging: {ex.Message}");
                 writer = null;
+                return false;
             }
         }
 
@@ -103,12 +130,13 @@ namespace RealityLog.OVR
 
             var timestamp = poseState.Time;
 
-            if (timestamp <= latestTimestamp)
+            if (timestamp <= latestTimestamp || !ShouldSavePose(timestamp))
             {
                 return;
             }
 
             latestTimestamp = timestamp;
+            latestSavedTimestamp = timestamp;
 
             var pose = poseState.Pose.ToOVRPose();
 
@@ -126,6 +154,16 @@ namespace RealityLog.OVR
                 position.x, position.y, position.z,
                 orientation.x, orientation.y, orientation.z, orientation.w
             );
+        }
+
+        private bool ShouldSavePose(double timestamp)
+        {
+            if (targetSaveFps <= 0 || latestSavedTimestamp == null)
+            {
+                return true;
+            }
+
+            return timestamp - latestSavedTimestamp.Value >= 1.0 / targetSaveFps;
         }
 
         private long ConvertOvrSecToUnixTimeMs(double ovrTime)
