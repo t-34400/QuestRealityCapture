@@ -1,15 +1,15 @@
 # qrc_camera_native
 
-Unity Android / Meta Quest 向けのNDK Camera2 native plugin雛形です。
+NDK Camera2 native plugin template for Unity Android and Meta Quest.
 
-## 方針
+## Design Principles
 
-- 権限要求は行いません。Unity側で `CAMERA` と `horizonos.permission.HEADSET_CAMERA` を取得済みの前提です。
-- JPEG返却、YUV->RGB変換は行いません。
-- `AImage` の各planeを `AImage_getPlaneData()` で取得し、現行Kotlin版と同じく plane 0, 1, 2 の順にそのまま連結して `.yuv` 保存します。
-- 保存FPSはCameraに要求せず、保存時にフレームを間引きます。
+- No runtime permission requests are performed. Unity is expected to obtain `CAMERA` and `horizonos.permission.HEADSET_CAMERA` beforehand.
+- No JPEG output or YUV-to-RGB conversion is performed.
+- Each `AImage` plane is read using `AImage_getPlaneData()` and written exactly as received. Plane 0, 1, and 2 are concatenated and stored as a `.yuv` file to preserve compatibility with the Kotlin implementation.
+- Camera FPS is not constrained. Frame skipping is applied only when saving frames.
 
-## 生成物
+## Generated Files
 
 ```text
 include/qrc_camera_native.h
@@ -22,9 +22,9 @@ CMakeLists.txt
 ```c
 QrcCamera_CreateSession(&handle);
 QrcCamera_InitializeSession(handle, width, height, frameDirectory, formatInfoFilePath);
-QrcCamera_SetSessionSaveFrameRate(handle, fps);   // 0なら全保存、正の値なら保存フレームを間引く
-QrcCamera_OpenSession(handle, position);          // 0=left, 1=right。ただしcameraId順fallback
-QrcCamera_OpenSessionById(handle, cameraId);      // 実運用ではこちらを推奨
+QrcCamera_SetSessionSaveFrameRate(handle, fps);
+QrcCamera_OpenSession(handle, position);
+QrcCamera_OpenSessionById(handle, cameraId);
 QrcCamera_StartSessionRecording(handle);
 QrcCamera_StopSessionRecording(handle);
 QrcCamera_CloseSession(handle);
@@ -32,12 +32,12 @@ QrcCamera_GetSessionStats(handle, &stats);
 QrcCamera_GetSessionLastError(handle);
 QrcCamera_DestroySession(handle);
 QrcCamera_GetCameraIdListJson();
-QrcCamera_GetCameraMetadataJson(position); // 0=left, 1=right
+QrcCamera_GetCameraMetadataJson(position);
 ```
 
-## 保存形式
+## Storage Format
 
-各フレームは以下の順でそのまま連結されます。
+Each frame is stored by concatenating buffers in the following order:
 
 ```text
 plane[0].buffer
@@ -45,15 +45,15 @@ plane[1].buffer
 plane[2].buffer
 ```
 
-I420 / NV12 / NV21 への変換、stride除去、padding除去、plane並び替えは行いません。
+No I420/NV12/NV21 conversion, stride removal, padding removal, or plane reordering is performed.
 
-ファイル名は現行Kotlin版と同じ考え方です。
+File naming follows the same convention as the Kotlin implementation.
 
 ```text
 <computed_unix_time_ms>.yuv
 ```
 
-時刻変換:
+Timestamp conversion:
 
 ```text
 unix_ms = baseUnixTimeMs + (imageTimestampNs - baseMonoTimeNs) / 1_000_000
@@ -61,7 +61,7 @@ unix_ms = baseUnixTimeMs + (imageTimestampNs - baseMonoTimeNs) / 1_000_000
 
 ## formatInfo.json
 
-初回保存フレームで以下を出力します。
+The first saved frame generates metadata similar to:
 
 ```json
 {
@@ -78,15 +78,15 @@ unix_ms = baseUnixTimeMs + (imageTimestampNs - baseMonoTimeNs) / 1_000_000
 }
 ```
 
-## Native metadata
+## Native Metadata
 
-`QrcCamera_GetCameraMetadataJson(position)` は、NDK Camera2 の標準 camera characteristics を Unity の `CameraMetadata` 互換 JSON として返します。
+`QrcCamera_GetCameraMetadataJson(position)` returns standard NDK Camera2 characteristics in a JSON format compatible with Unity `CameraMetadata`.
 
-`ACameraMetadata_getTagFromName()` が実行環境で利用できる場合は、以下の Quest vendor metadata を native 側で名前解決します。
+When `ACameraMetadata_getTagFromName()` is available, the plugin resolves the following Meta Quest vendor metadata keys:
 
 ```text
 com.meta.extra_metadata.position
 com.meta.extra_metadata.camera_source
 ```
 
-名前解決できない環境では `nativeMetadata.questVendorKeysResolved=false` と raw vendor tag dump を出力し、left/right は cameraId 順 fallback になります。この fallback は実機で確認してください。
+If vendor key resolution is unavailable, `nativeMetadata.questVendorKeysResolved=false` is reported and raw vendor tags are exported. In that case, left/right camera selection falls back to camera ID ordering and should be verified on the target device.

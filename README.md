@@ -145,6 +145,33 @@ To convert raw depth maps into linear or 3D form, refer to the companion project
 
 ---
 
+## ⚙️ Configuration
+
+The application can be configured using a JSON configuration file.
+
+Default configuration ([recording_config.default.json](Assets/RealityLog/Configs/recording_config.default.json
+)):
+
+```text
+Assets/RealityLog/Configs/recording_config.default.json
+```
+
+Runtime override:
+
+```text
+/sdcard/Android/data/com.t34400.QuestRealityCapture/files/recording_config.json
+```
+
+When `recording_config.json` is present, values in that file override the default configuration.
+
+Example deployment:
+
+```bash
+adb push recording_config.json /sdcard/Android/data/com.t34400.QuestRealityCapture/files/recording_config.json
+```
+
+---
+
 ## 🚀 Installation & Usage
 
 1. Download the APK from [GitHub Releases](https://github.com/t-34400/QuestRealityCapture/releases)
@@ -163,10 +190,10 @@ Required permissions (camera/scene access) are requested automatically at runtim
 
 ## 🛠 Environment
 
-* Unity **6000.0.30f1**
+* Unity **6000.4.5f1**
 * Meta OpenXR SDK
 * Device: Meta Quest 3 or 3s only
-* Approx. recording frame rate: \~25 FPS (camera & depth)
+* Approx. recording frame rate: \~60 FPS (camera & depth)
 
 ---
 
