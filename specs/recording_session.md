@@ -61,7 +61,11 @@ Legacy modules may keep directory-name setters temporarily for scene compatibili
 
 # Output Layout Compatibility
 
-The default output layout remains:
+The current configurable output layout is:
+
+> Legacy compatibility reference: see `legacy_recording_format.md`.
+
+The current configurable output layout is:
 
 ```text
 <session>/
@@ -134,7 +138,7 @@ On Android devices, this allows configuration override through adb by placing `r
 
 A missing external configuration file must not be treated as a startup error. Missing configuration should fall back to the assigned `TextAsset`, then to defaults that preserve the existing output layout.
 
-Default values are authoritative and must preserve the existing output layout:
+Default values are authoritative for the current implementation. They do not match the legacy QuestRealityCapture layout documented in `legacy_recording_format.md`:
 
 ```text
 sessionNameFormat = yyyyMMdd_HHmmss

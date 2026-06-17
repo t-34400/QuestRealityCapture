@@ -44,3 +44,6 @@ Read `COMMON_RULES.md` before reading any other specification.
   * Defines Unity-side recording session orchestration, session directory ownership, output path construction, recording on/off behavior, and JSON-based camera/depth/pose configuration.
   * Read before modifying recording session controllers, save directory management, recording on/off scene behavior, or config JSON handling.
 
+
+* `legacy_recording_format.md`
+  * Documents the original QuestRealityCapture output layout and file formats for compatibility review.
