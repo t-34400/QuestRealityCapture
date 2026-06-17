@@ -8,6 +8,8 @@ namespace RealityLog.Recording
 {
     public static class RecordingConfigLoader
     {
+        public const string DefaultExternalConfigPath = "recording_config.json";
+
         public static RecordingSessionConfig Load(TextAsset? configAsset, string externalConfigPath)
         {
             var config = new RecordingSessionConfig();
@@ -32,30 +34,42 @@ namespace RealityLog.Recording
 
         private static string ResolveJson(TextAsset? configAsset, string externalConfigPath)
         {
-            if (!string.IsNullOrWhiteSpace(externalConfigPath))
+            var resolvedExternalPath = ResolveExternalPath(externalConfigPath);
+            if (!string.IsNullOrEmpty(resolvedExternalPath))
             {
-                var resolvedPath = ResolveExternalPath(externalConfigPath);
-                if (File.Exists(resolvedPath))
+                if (File.Exists(resolvedExternalPath))
                 {
                     try
                     {
-                        return File.ReadAllText(resolvedPath);
+                        Debug.Log($"[{Constants.LOG_TAG}] Loading recording config JSON from external path: {resolvedExternalPath}");
+                        return File.ReadAllText(resolvedExternalPath);
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogError($"[{Constants.LOG_TAG}] Failed to read recording config JSON: {ex.Message}");
+                        Debug.LogError($"[{Constants.LOG_TAG}] Failed to read recording config JSON from {resolvedExternalPath}: {ex.Message}");
                         return string.Empty;
                     }
                 }
 
-                Debug.LogError($"[{Constants.LOG_TAG}] Recording config JSON was not found: {resolvedPath}");
+                Debug.Log($"[{Constants.LOG_TAG}] External recording config JSON not found. Using fallback config: {resolvedExternalPath}");
             }
 
-            return configAsset != null ? configAsset.text : string.Empty;
+            if (configAsset != null)
+            {
+                Debug.Log($"[{Constants.LOG_TAG}] Loading recording config JSON from TextAsset: {configAsset.name}");
+                return configAsset.text;
+            }
+
+            return string.Empty;
         }
 
-        private static string ResolveExternalPath(string externalConfigPath)
+        public static string ResolveExternalPath(string externalConfigPath)
         {
+            if (string.IsNullOrWhiteSpace(externalConfigPath))
+            {
+                return string.Empty;
+            }
+
             return Path.IsPathRooted(externalConfigPath)
                 ? externalConfigPath
                 : Path.Combine(Application.persistentDataPath, externalConfigPath);

@@ -122,9 +122,17 @@ Scene-facing recording toggles should support a configurable cooldown so that ra
 
 # JSON Configuration
 
-Recording configuration may be loaded from a Unity `TextAsset` or an external JSON file path. Relative external paths are resolved under `Application.persistentDataPath`.
+Recording configuration may be loaded from an external JSON file path or a Unity `TextAsset`. External JSON has priority over `TextAsset` configuration so that device-local configuration can override packaged defaults.
 
-Missing configuration should fall back to defaults that preserve the existing output layout.
+Relative external paths are resolved under `Application.persistentDataPath`. The default external configuration path is:
+
+```text
+recording_config.json
+```
+
+On Android devices, this allows configuration override through adb by placing `recording_config.json` in the app persistent files directory. The exact package-specific absolute path is determined by Unity at runtime through `Application.persistentDataPath`.
+
+A missing external configuration file must not be treated as a startup error. Missing configuration should fall back to the assigned `TextAsset`, then to defaults that preserve the existing output layout.
 
 Supported configuration fields include:
 

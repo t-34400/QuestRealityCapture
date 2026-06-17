@@ -11,7 +11,7 @@ namespace RealityLog.Recording
     public sealed class RecordingSessionController : MonoBehaviour, IRecordingSessionController
     {
         [SerializeField] private TextAsset? configJson = null;
-        [SerializeField] private string externalConfigPath = string.Empty;
+        [SerializeField] private string externalConfigPath = RecordingConfigLoader.DefaultExternalConfigPath;
         [SerializeField] private NativeCameraRecorder[] cameraRecorders = new NativeCameraRecorder[0];
         [SerializeField] private DepthMapExporter? depthExporter = null;
         [SerializeField] private PoseLogger? poseLogger = null;
