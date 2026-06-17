@@ -17,6 +17,7 @@ namespace RealityLog.Recording
         [SerializeField] private PoseLogger? poseLogger = null;
         [SerializeField] private bool startRecordingOnStart = false;
         [SerializeField] private bool closeCamerasOnStop = true;
+        [SerializeField, Min(0f)] private float recordingToggleCooldownSeconds = 1f;
 
         private readonly RecordingSessionPathProvider pathProvider = new();
         private readonly List<NativeCameraRecorder> startedCameraRecorders = new();
@@ -25,12 +26,25 @@ namespace RealityLog.Recording
         private bool depthStarted;
         private bool poseStarted;
         private bool recording;
+        private float nextRecordingToggleRealtime;
 
         public bool IsRecording => recording;
         public RecordingSessionPaths? ActivePaths => activePaths;
 
         public void SetRecordingEnabled(bool enabled)
         {
+            if (enabled == recording)
+            {
+                return;
+            }
+
+            if (!CanAcceptRecordingToggle())
+            {
+                Debug.LogWarning($"[{Constants.LOG_TAG}] Recording toggle ignored during cooldown.");
+                return;
+            }
+
+            ArmRecordingToggleCooldown();
             if (enabled)
             {
                 StartRecording();
@@ -89,6 +103,21 @@ namespace RealityLog.Recording
             var success = StopStartedModules();
             ClearActiveSessionState();
             return success;
+        }
+
+        private bool CanAcceptRecordingToggle()
+        {
+            return recordingToggleCooldownSeconds <= 0f || Time.realtimeSinceStartup >= nextRecordingToggleRealtime;
+        }
+
+        private void ArmRecordingToggleCooldown()
+        {
+            if (recordingToggleCooldownSeconds <= 0f)
+            {
+                return;
+            }
+
+            nextRecordingToggleRealtime = Time.realtimeSinceStartup + recordingToggleCooldownSeconds;
         }
 
         private bool ValidateConfiguredModules(RecordingSessionConfig config)

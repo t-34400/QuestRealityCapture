@@ -116,6 +116,8 @@ The session controller should expose a simple scene-facing method:
 SetRecordingEnabled(bool enabled)
 ```
 
+Scene-facing recording toggles should support a configurable cooldown so that rapid repeated UI input cannot immediately start and stop native recording sessions. The cooldown applies to accepted state changes through `SetRecordingEnabled(bool enabled)`. Repeating the already-active state is treated as a no-op and should not consume the cooldown.
+
 ---
 
 # JSON Configuration
