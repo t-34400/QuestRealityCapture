@@ -67,23 +67,37 @@ namespace RealityLog.Depth
 
         public void StartExport()
         {
-            isExporting = true;
+            TryStartExport();
+        }
 
-            leftDepthCsvWriter?.Dispose();
-            rightDepthCsvWriter?.Dispose();
+        public bool TryStartExport()
+        {
+            StopExport();
 
-            var paths = ResolveLegacyPathsIfNeeded();
-            latestSavedTimestampMs = null;
-
-            leftDepthCsvWriter = new(paths.leftDescriptorFilePath, descriptorHeader);
-            rightDepthCsvWriter = new(paths.rightDescriptorFilePath, descriptorHeader);
-
-            Directory.CreateDirectory(paths.leftDirectoryPath);
-            Directory.CreateDirectory(paths.rightDirectoryPath);
-
-            if (hasScenePermission)
+            try
             {
-                depthDataExtractor?.SetDepthEnabled(true);
+                var paths = ResolveLegacyPathsIfNeeded();
+                latestSavedTimestampMs = null;
+
+                Directory.CreateDirectory(paths.leftDirectoryPath);
+                Directory.CreateDirectory(paths.rightDirectoryPath);
+
+                leftDepthCsvWriter = new(paths.leftDescriptorFilePath, descriptorHeader);
+                rightDepthCsvWriter = new(paths.rightDescriptorFilePath, descriptorHeader);
+
+                isExporting = true;
+                if (hasScenePermission)
+                {
+                    depthDataExtractor?.SetDepthEnabled(true);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[{Constants.LOG_TAG}] Failed to start depth export: {ex.Message}");
+                StopExport();
+                return false;
             }
         }
 
@@ -114,6 +128,8 @@ namespace RealityLog.Depth
 
         private void OnDestroy()
         {
+            StopExport();
+
             renderTextureExporter?.Dispose();
             renderTextureExporter = null;
 

@@ -104,6 +104,12 @@ stop camera recorders
 close cameras when configured
 ```
 
+If any enabled recording module fails to start, the session controller must stop already-started modules and close any camera recorder whose native lifecycle may have been partially opened.
+
+When camera recording is enabled, each enabled camera side in the active configuration must have a matching native camera recorder assigned before the session starts.
+
+Depth and pose modules must report start success or failure to the session controller so that session startup does not silently continue after output initialization fails.
+
 The session controller should expose a simple scene-facing method:
 
 ```text

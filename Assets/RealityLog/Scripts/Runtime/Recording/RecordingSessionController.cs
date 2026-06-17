@@ -93,9 +93,15 @@ namespace RealityLog.Recording
 
         private bool ValidateConfiguredModules(RecordingSessionConfig config)
         {
-            if (config.camera.enabled && !HasEnabledCameraRecorder(config))
+            if (config.camera.enabled && config.camera.left.enabled && !HasEnabledCameraRecorder(CameraPosition.Left))
             {
-                Debug.LogError($"[{Constants.LOG_TAG}] Recording session requires at least one enabled native camera recorder.");
+                Debug.LogError($"[{Constants.LOG_TAG}] Recording session left camera is enabled, but no left native camera recorder is assigned.");
+                return false;
+            }
+
+            if (config.camera.enabled && config.camera.right.enabled && !HasEnabledCameraRecorder(CameraPosition.Right))
+            {
+                Debug.LogError($"[{Constants.LOG_TAG}] Recording session right camera is enabled, but no right native camera recorder is assigned.");
                 return false;
             }
 
@@ -114,17 +120,11 @@ namespace RealityLog.Recording
             return true;
         }
 
-        private bool HasEnabledCameraRecorder(RecordingSessionConfig config)
+        private bool HasEnabledCameraRecorder(CameraPosition position)
         {
             foreach (var recorder in cameraRecorders)
             {
-                if (recorder == null)
-                {
-                    continue;
-                }
-
-                var side = recorder.CameraPosition == CameraPosition.Right ? config.camera.right : config.camera.left;
-                if (side.enabled)
+                if (recorder != null && recorder.CameraPosition == position)
                 {
                     return true;
                 }
@@ -159,12 +159,11 @@ namespace RealityLog.Recording
                     continue;
                 }
 
+                startedCameraRecorders.Add(recorder);
                 if (!recorder.StartRecording())
                 {
                     return false;
                 }
-
-                startedCameraRecorders.Add(recorder);
             }
 
             return true;
@@ -177,7 +176,11 @@ namespace RealityLog.Recording
                 return true;
             }
 
-            depthExporter!.StartExport();
+            if (!depthExporter!.TryStartExport())
+            {
+                return false;
+            }
+
             depthStarted = true;
             return true;
         }
@@ -189,7 +192,11 @@ namespace RealityLog.Recording
                 return true;
             }
 
-            poseLogger!.StartLogging();
+            if (!poseLogger!.TryStartLogging())
+            {
+                return false;
+            }
+
             poseStarted = true;
             return true;
         }

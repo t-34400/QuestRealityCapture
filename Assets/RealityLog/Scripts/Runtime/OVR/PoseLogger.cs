@@ -55,6 +55,11 @@ namespace RealityLog.OVR
 
         public void StartLogging()
         {
+            TryStartLogging();
+        }
+
+        public bool TryStartLogging()
+        {
             try
             {
                 StopLogging();
@@ -62,11 +67,13 @@ namespace RealityLog.OVR
                 latestSavedTimestamp = null;
                 var filePath = configuredFilePath ?? Path.Combine(Application.persistentDataPath, DirectoryName, fileName);
                 writer = new CsvWriter(filePath, HEADER);
+                return true;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[{Constants.LOG_TAG}] Failed to create CsvWriter: {ex.Message}");
+                Debug.LogError($"[{Constants.LOG_TAG}] Failed to start pose logging: {ex.Message}");
                 writer = null;
+                return false;
             }
         }
 
