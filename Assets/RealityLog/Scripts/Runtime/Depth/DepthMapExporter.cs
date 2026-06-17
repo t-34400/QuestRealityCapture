@@ -1,13 +1,14 @@
-# nullable enable
+#nullable enable
 
 using System;
 using System.IO;
+using RealityLog.Recording;
 using UnityEngine;
 using UnityEngine.Android;
 
 namespace RealityLog.Depth
 {
-    class DepthMapExporter : MonoBehaviour
+    public class DepthMapExporter : MonoBehaviour
     {
         private static readonly string[] descriptorHeader = new[]
             {
@@ -26,6 +27,12 @@ namespace RealityLog.Depth
         [SerializeField] private string rightDepthMapDirectoryName = "right_depth";
         [SerializeField] private string leftDepthDescFileName = "left_depth_descriptors.csv";
         [SerializeField] private string rightDepthDescFileName = "right_depth_descriptors.csv";
+        [SerializeField] private int targetSaveFps = 0;
+
+        private string? leftDepthDirectoryPath;
+        private string? rightDepthDirectoryPath;
+        private string? leftDepthDescriptorFilePath;
+        private string? rightDepthDescriptorFilePath;
 
         private DepthDataExtractor? depthDataExtractor;
 
@@ -45,6 +52,19 @@ namespace RealityLog.Depth
             set => directoryName = value;
         }
 
+        public void ApplyConfiguration(RecordingSessionConfig.DepthConfig config, RecordingSessionPaths.DepthPaths paths)
+        {
+            targetSaveFps = config.targetSaveFps;
+            leftDepthMapDirectoryName = config.leftDirectoryName;
+            rightDepthMapDirectoryName = config.rightDirectoryName;
+            leftDepthDescFileName = config.leftDescriptorFileName;
+            rightDepthDescFileName = config.rightDescriptorFileName;
+            leftDepthDirectoryPath = paths.LeftDirectoryPath;
+            rightDepthDirectoryPath = paths.RightDirectoryPath;
+            leftDepthDescriptorFilePath = paths.LeftDescriptorFilePath;
+            rightDepthDescriptorFilePath = paths.RightDescriptorFilePath;
+        }
+
         public void StartExport()
         {
             isExporting = true;
@@ -52,11 +72,14 @@ namespace RealityLog.Depth
             leftDepthCsvWriter?.Dispose();
             rightDepthCsvWriter?.Dispose();
 
-            leftDepthCsvWriter = new(Path.Join(Application.persistentDataPath, DirectoryName, leftDepthDescFileName), descriptorHeader);
-            rightDepthCsvWriter = new(Path.Join(Application.persistentDataPath, DirectoryName, rightDepthDescFileName), descriptorHeader);
+            var paths = ResolveLegacyPathsIfNeeded();
+            latestSavedTimestampMs = null;
 
-            Directory.CreateDirectory(Path.Join(Application.persistentDataPath, DirectoryName, leftDepthMapDirectoryName));
-            Directory.CreateDirectory(Path.Join(Application.persistentDataPath, DirectoryName, rightDepthMapDirectoryName));
+            leftDepthCsvWriter = new(paths.leftDescriptorFilePath, descriptorHeader);
+            rightDepthCsvWriter = new(paths.rightDescriptorFilePath, descriptorHeader);
+
+            Directory.CreateDirectory(paths.leftDirectoryPath);
+            Directory.CreateDirectory(paths.rightDirectoryPath);
 
             if (hasScenePermission)
             {
@@ -140,11 +163,17 @@ namespace RealityLog.Depth
                 var height = renderTexture.height;
 
                 var unixTime = ConvertTimestampNsToUnixTimeMs(frameDescriptors[0].timestampNs);
+                if (!ShouldSaveFrame(unixTime))
+                {
+                    return;
+                }
 
-                var leftDepthFilePath = Path.Join(Application.persistentDataPath, DirectoryName, $"{leftDepthMapDirectoryName}/{unixTime}.raw");
-                var rightDepthFilePath = Path.Join(Application.persistentDataPath, DirectoryName, $"{rightDepthMapDirectoryName}/{unixTime}.raw");
+                var paths = ResolveLegacyPathsIfNeeded();
+                var leftDepthFilePath = Path.Join(paths.leftDirectoryPath, $"{unixTime}.raw");
+                var rightDepthFilePath = Path.Join(paths.rightDirectoryPath, $"{unixTime}.raw");
 
                 renderTextureExporter.Export(renderTexture, leftDepthFilePath, rightDepthFilePath);
+                latestSavedTimestampMs = unixTime;
 
                 for (var i = 0; i < FRAME_DESC_COUNT; ++i)
                 {
@@ -175,6 +204,45 @@ namespace RealityLog.Depth
                     }
                 }
             }
+        }
+
+        private long? latestSavedTimestampMs;
+
+        private bool ShouldSaveFrame(long timestampMs)
+        {
+            if (targetSaveFps <= 0 || latestSavedTimestampMs == null)
+            {
+                return true;
+            }
+
+            var minIntervalMs = 1000.0 / targetSaveFps;
+            return timestampMs - latestSavedTimestampMs.Value >= minIntervalMs;
+        }
+
+        private (
+            string leftDirectoryPath,
+            string rightDirectoryPath,
+            string leftDescriptorFilePath,
+            string rightDescriptorFilePath) ResolveLegacyPathsIfNeeded()
+        {
+            if (!string.IsNullOrEmpty(leftDepthDirectoryPath)
+                && !string.IsNullOrEmpty(rightDepthDirectoryPath)
+                && !string.IsNullOrEmpty(leftDepthDescriptorFilePath)
+                && !string.IsNullOrEmpty(rightDepthDescriptorFilePath))
+            {
+                return (
+                    leftDepthDirectoryPath!,
+                    rightDepthDirectoryPath!,
+                    leftDepthDescriptorFilePath!,
+                    rightDepthDescriptorFilePath!);
+            }
+
+            var rootDirectoryPath = Path.Combine(Application.persistentDataPath, DirectoryName);
+            return (
+                Path.Combine(rootDirectoryPath, leftDepthMapDirectoryName),
+                Path.Combine(rootDirectoryPath, rightDepthMapDirectoryName),
+                Path.Combine(rootDirectoryPath, leftDepthDescFileName),
+                Path.Combine(rootDirectoryPath, rightDepthDescFileName));
         }
 
         private long ConvertTimestampNsToUnixTimeMs(long timestampNs)

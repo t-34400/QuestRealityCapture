@@ -1,5 +1,6 @@
 #nullable enable
 
+using RealityLog.Recording;
 using UnityEngine;
 
 namespace RealityLog.Camera
@@ -24,6 +25,9 @@ namespace RealityLog.Camera
         private bool opened;
         private bool recording;
         private CameraMetadata? selectedMetadata;
+        private RecordingSessionPaths.CameraPaths? configuredPaths;
+
+        public bool IsEnabledByConfiguration { get; private set; } = true;
 
         public string DataDirectoryName
         {
@@ -36,6 +40,26 @@ namespace RealityLog.Camera
         public void SetDataDirectoryName(string value)
         {
             dataDirectoryName = value;
+            configuredPaths = null;
+        }
+
+        public void ApplyConfiguration(RecordingSessionConfig config, RecordingSessionPaths paths)
+        {
+            var side = cameraPosition == CameraPosition.Right ? config.camera.right : config.camera.left;
+            IsEnabledByConfiguration = config.camera.enabled && side.enabled;
+            targetSaveFps = config.camera.targetSaveFps;
+            preferOpenByCameraId = config.camera.preferOpenByCameraId;
+            allowJavaMetadataFallback = config.camera.allowJavaMetadataFallback;
+            imageSubdirName = side.imageDirectoryName;
+            cameraMetaDataFileName = side.metadataFileName;
+            formatInfoFileName = side.formatInfoFileName;
+            dataDirectoryName = paths.SessionName;
+            configuredPaths = paths.GetCameraPaths(cameraPosition);
+
+            if (!IsEnabledByConfiguration && (initialized || opened || recording))
+            {
+                Close();
+            }
         }
 
         public bool Initialize()
@@ -52,13 +76,9 @@ namespace RealityLog.Camera
                 return false;
             }
 
-            var paths = pathProvider.Create(
-                dataDirectoryName,
-                imageSubdirName,
-                cameraMetaDataFileName,
-                formatInfoFileName);
+            var paths = ResolveRecordingPaths();
 
-            metadataWriter.WriteCameraMetadata(paths.CameraMetadataFilePath, metadata);
+            metadataWriter.WriteCameraMetadata(paths.MetadataFilePath, metadata);
 
             var size = metadata.sensor.pixelArraySize;
             if (!CheckResult(NativeCameraBridge.Initialize(size.width, size.height, paths.ImageDirectoryPath, paths.FormatInfoFilePath), "initialize native camera"))
@@ -179,6 +199,25 @@ namespace RealityLog.Camera
         private void OnDestroy()
         {
             Close();
+        }
+
+        private RecordingSessionPaths.CameraPaths ResolveRecordingPaths()
+        {
+            if (configuredPaths != null)
+            {
+                return configuredPaths;
+            }
+
+            var legacyPaths = pathProvider.Create(
+                dataDirectoryName,
+                imageSubdirName,
+                cameraMetaDataFileName,
+                formatInfoFileName);
+
+            return new RecordingSessionPaths.CameraPaths(
+                legacyPaths.ImageDirectoryPath,
+                legacyPaths.CameraMetadataFilePath,
+                legacyPaths.FormatInfoFilePath);
         }
 
         private ICameraMetadataProvider? ResolveMetadataProvider()

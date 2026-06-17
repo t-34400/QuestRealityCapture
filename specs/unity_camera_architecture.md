@@ -16,6 +16,8 @@ Native plugin behavior is defined in `native_camera_plugin.md`.
 
 Recorded YUV format behavior is defined in `yuv_storage_format.md`.
 
+Recording session orchestration, path ownership, and JSON configuration behavior are defined in `recording_session.md`.
+
 ---
 
 # Unity Responsibilities

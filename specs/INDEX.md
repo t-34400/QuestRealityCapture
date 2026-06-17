@@ -38,3 +38,9 @@ Read `COMMON_RULES.md` before reading any other specification.
 * `unity_camera_architecture.md`
   * Defines Unity-side responsibilities, native bridge expectations, permission ownership, legacy Java/Kotlin separation, and scene-facing recorder lifecycle expectations.
   * Read before modifying Unity camera scripts or introducing Unity-to-native integration code.
+## Recording Session
+
+* `recording_session.md`
+  * Defines Unity-side recording session orchestration, session directory ownership, output path construction, recording on/off behavior, and JSON-based camera/depth/pose configuration.
+  * Read before modifying recording session controllers, save directory management, recording on/off scene behavior, or config JSON handling.
+
