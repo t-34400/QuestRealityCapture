@@ -112,6 +112,8 @@ ICameraRecorder
     -> NativeCameraRecorder
 ```
 
+The native Unity integration should provide a concrete recorder component that implements the shared recorder lifecycle instead of exposing native bridge calls directly to scene logic.
+
 The exact names may differ, but the ownership boundary should remain explicit.
 
 ---

@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace RealityLog.Camera
 {
-    public class NativeCameraRecorder : MonoBehaviour
+    public class NativeCameraRecorder : MonoBehaviour, ICameraRecorder
     {
         [SerializeField] private CameraPermissionManager cameraPermissionManager = default!;
         [SerializeField] private CameraPosition cameraPosition = CameraPosition.Left;
@@ -43,15 +43,15 @@ namespace RealityLog.Camera
                 return false;
             }
 
-            var dataDirPath = Path.Join(Application.persistentDataPath, dataDirectoryName);
+            var dataDirPath = Path.Combine(Application.persistentDataPath, dataDirectoryName);
             Directory.CreateDirectory(dataDirPath);
 
             WriteCameraMetadata(dataDirPath, metadata);
 
-            var imageFileDirPath = Path.Join(dataDirPath, imageSubdirName);
+            var imageFileDirPath = Path.Combine(dataDirPath, imageSubdirName);
             Directory.CreateDirectory(imageFileDirPath);
 
-            var formatInfoFilePath = Path.Join(dataDirPath, formatInfoFileName);
+            var formatInfoFilePath = Path.Combine(dataDirPath, formatInfoFileName);
             var size = metadata.sensor.pixelArraySize;
 
             if (!CheckResult(NativeCameraBridge.Initialize(size.width, size.height, imageFileDirPath, formatInfoFilePath), "initialize native camera"))
@@ -184,7 +184,7 @@ namespace RealityLog.Camera
 
         private void WriteCameraMetadata(string dataDirPath, CameraMetadata metadata)
         {
-            var metaDataFilePath = Path.Join(dataDirPath, cameraMetaDataFileName);
+            var metaDataFilePath = Path.Combine(dataDirPath, cameraMetaDataFileName);
             var metaDataJson = JsonUtility.ToJson(metadata);
             File.WriteAllText(metaDataFilePath, metaDataJson);
         }
