@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Generic;
 using RealityLog.Camera;
 using RealityLog.Depth;
 using RealityLog.OVR;
@@ -7,7 +8,7 @@ using UnityEngine;
 
 namespace RealityLog.Recording
 {
-    public sealed class RecordingSessionController : MonoBehaviour
+    public sealed class RecordingSessionController : MonoBehaviour, IRecordingSessionController
     {
         [SerializeField] private TextAsset? configJson = null;
         [SerializeField] private string externalConfigPath = string.Empty;
@@ -18,10 +19,14 @@ namespace RealityLog.Recording
         [SerializeField] private bool closeCamerasOnStop = true;
 
         private readonly RecordingSessionPathProvider pathProvider = new();
+        private readonly List<NativeCameraRecorder> startedCameraRecorders = new();
         private RecordingSessionConfig? activeConfig;
         private RecordingSessionPaths? activePaths;
+        private bool depthStarted;
+        private bool poseStarted;
         private bool recording;
 
+        public bool IsRecording => recording;
         public RecordingSessionPaths? ActivePaths => activePaths;
 
         public void SetRecordingEnabled(bool enabled)
@@ -44,24 +49,34 @@ namespace RealityLog.Recording
             }
 
             activeConfig = RecordingConfigLoader.Load(configJson, externalConfigPath);
-            activePaths = pathProvider.Create(activeConfig);
-
-            ConfigureModules(activeConfig, activePaths);
-
-            if (!StartCameraRecorders())
+            if (!ValidateConfiguredModules(activeConfig))
             {
-                StopRecording();
+                activeConfig = null;
                 return false;
             }
 
-            if (activeConfig.depth.enabled)
+            activePaths = pathProvider.Create(activeConfig);
+            ConfigureModules(activeConfig, activePaths);
+
+            if (!StartCameraRecorders(activeConfig))
             {
-                depthExporter?.StartExport();
+                StopStartedModules();
+                ClearActiveSessionState();
+                return false;
             }
 
-            if (activeConfig.pose.enabled)
+            if (!StartDepthExporter(activeConfig))
             {
-                poseLogger?.StartLogging();
+                StopStartedModules();
+                ClearActiveSessionState();
+                return false;
+            }
+
+            if (!StartPoseLogger(activeConfig))
+            {
+                StopStartedModules();
+                ClearActiveSessionState();
+                return false;
             }
 
             recording = true;
@@ -71,18 +86,36 @@ namespace RealityLog.Recording
 
         public bool StopRecording()
         {
-            var success = true;
+            var success = StopStartedModules();
+            ClearActiveSessionState();
+            return success;
+        }
 
-            if (poseLogger != null)
+        private bool ValidateConfiguredModules(RecordingSessionConfig config)
+        {
+            if (config.camera.enabled && !HasEnabledCameraRecorder(config))
             {
-                poseLogger.StopLogging();
+                Debug.LogError($"[{Constants.LOG_TAG}] Recording session requires at least one enabled native camera recorder.");
+                return false;
             }
 
-            if (depthExporter != null)
+            if (config.depth.enabled && depthExporter == null)
             {
-                depthExporter.StopExport();
+                Debug.LogError($"[{Constants.LOG_TAG}] Recording session depth export is enabled, but no depth exporter is assigned.");
+                return false;
             }
 
+            if (config.pose.enabled && poseLogger == null)
+            {
+                Debug.LogError($"[{Constants.LOG_TAG}] Recording session pose logging is enabled, but no pose logger is assigned.");
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool HasEnabledCameraRecorder(RecordingSessionConfig config)
+        {
             foreach (var recorder in cameraRecorders)
             {
                 if (recorder == null)
@@ -90,15 +123,14 @@ namespace RealityLog.Recording
                     continue;
                 }
 
-                success &= recorder.StopRecording();
-                if (closeCamerasOnStop)
+                var side = recorder.CameraPosition == CameraPosition.Right ? config.camera.right : config.camera.left;
+                if (side.enabled)
                 {
-                    success &= recorder.Close();
+                    return true;
                 }
             }
 
-            recording = false;
-            return success;
+            return false;
         }
 
         private void ConfigureModules(RecordingSessionConfig config, RecordingSessionPaths paths)
@@ -112,14 +144,14 @@ namespace RealityLog.Recording
             poseLogger?.ApplyConfiguration(config.pose, paths.PoseCsvFilePath);
         }
 
-        private bool StartCameraRecorders()
+        private bool StartCameraRecorders(RecordingSessionConfig config)
         {
-            if (activeConfig == null || !activeConfig.camera.enabled)
+            if (!config.camera.enabled)
             {
                 return true;
             }
 
-            var success = true;
+            startedCameraRecorders.Clear();
             foreach (var recorder in cameraRecorders)
             {
                 if (recorder == null || !recorder.IsEnabledByConfiguration)
@@ -127,14 +159,78 @@ namespace RealityLog.Recording
                     continue;
                 }
 
-                success &= recorder.StartRecording();
-                if (!success)
+                if (!recorder.StartRecording())
                 {
-                    break;
+                    return false;
+                }
+
+                startedCameraRecorders.Add(recorder);
+            }
+
+            return true;
+        }
+
+        private bool StartDepthExporter(RecordingSessionConfig config)
+        {
+            if (!config.depth.enabled)
+            {
+                return true;
+            }
+
+            depthExporter!.StartExport();
+            depthStarted = true;
+            return true;
+        }
+
+        private bool StartPoseLogger(RecordingSessionConfig config)
+        {
+            if (!config.pose.enabled)
+            {
+                return true;
+            }
+
+            poseLogger!.StartLogging();
+            poseStarted = true;
+            return true;
+        }
+
+        private bool StopStartedModules()
+        {
+            var success = true;
+
+            if (poseStarted && poseLogger != null)
+            {
+                poseLogger.StopLogging();
+                poseStarted = false;
+            }
+
+            if (depthStarted && depthExporter != null)
+            {
+                depthExporter.StopExport();
+                depthStarted = false;
+            }
+
+            for (var i = startedCameraRecorders.Count - 1; i >= 0; --i)
+            {
+                var recorder = startedCameraRecorders[i];
+                success &= recorder.StopRecording();
+                if (closeCamerasOnStop)
+                {
+                    success &= recorder.Close();
                 }
             }
 
+            startedCameraRecorders.Clear();
             return success;
+        }
+
+        private void ClearActiveSessionState()
+        {
+            recording = false;
+            activeConfig = null;
+            activePaths = null;
+            depthStarted = false;
+            poseStarted = false;
         }
 
         private void Start()

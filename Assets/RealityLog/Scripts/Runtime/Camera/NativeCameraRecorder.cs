@@ -37,6 +37,8 @@ namespace RealityLog.Camera
             set => dataDirectoryName = value;
         }
 
+        public CameraPosition CameraPosition => cameraPosition;
+
         public NativeCameraStats LastStats { get; private set; }
 
         public void SetDataDirectoryName(string value)

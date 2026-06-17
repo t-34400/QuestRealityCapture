@@ -37,6 +37,8 @@ The session controller owns:
 
 Unity UI should call the session controller for recording on/off behavior instead of directly enabling individual camera, depth, or pose components.
 
+Legacy camera recording controller components may remain as scene compatibility adapters, but when a session controller is assigned they must forward recording on/off calls to the session controller and must not override session-owned paths.
+
 ---
 
 # Path Ownership
