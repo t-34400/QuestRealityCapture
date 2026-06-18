@@ -14,7 +14,9 @@ Camera-specific Unity/native boundaries are defined in `unity_camera_architectur
 
 Recorded YUV compatibility is defined in `yuv_storage_format.md`.
 
-The legacy downstream-facing output format is defined in `legacy_recording_format.md` and is the default recording layout unless a user configuration explicitly overrides it.
+The legacy downstream-facing output format is defined in `legacy_recording_format.md` and is used by the Camera2-compatible backend.
+
+MRUK camera output is defined in `mruk_recording_format.md` and is a distinct downstream-facing camera format.
 
 ---
 
@@ -63,7 +65,32 @@ Legacy modules may keep directory-name setters temporarily for scene compatibili
 
 # Output Layout Compatibility
 
-The default output layout must preserve the original QuestRealityCapture layout documented in `legacy_recording_format.md`:
+The session root must include a backend-identifying metadata file:
+
+```text
+<session>/
+    session_info.json
+```
+
+`session_info.json` must describe the realized recording output, not merely the requested configuration. The minimum required fields are:
+
+```json
+{
+  "sessionFormatVersion": 2,
+  "captureBackend": "MRUK"
+}
+```
+
+`captureBackend` must be one of:
+
+```text
+MRUK
+NativeCamera2
+```
+
+`appVersion` must not be required for postprocess compatibility decisions. Downstream tools should branch on `sessionFormatVersion` and `captureBackend`.
+
+The Camera2-compatible output layout must preserve the original QuestRealityCapture layout documented in `legacy_recording_format.md`:
 
 ```text
 <session>/
@@ -87,7 +114,9 @@ The default output layout must preserve the original QuestRealityCapture layout 
     right_depth_descriptors.csv
 ```
 
-Changing default directory names, file names, CSV columns, JSON keys, raw depth byte layout, or YUV byte layout requires downstream compatibility review.
+Changing Camera2-compatible directory names, file names, CSV columns, JSON keys, raw depth byte layout, or YUV byte layout requires downstream compatibility review.
+
+The MRUK camera backend must use the separate output layout defined in `mruk_recording_format.md` and must not write RGBA frames into legacy YUV paths.
 
 ---
 
@@ -99,7 +128,7 @@ The default start sequence is:
 load config
 create session paths
 apply config to modules
-start camera recorders
+start configured camera backend recorders
 start depth exporter
 start optional live feedback overlays
 start pose loggers
@@ -111,15 +140,17 @@ The default stop sequence is:
 stop pose loggers
 stop optional live feedback overlays
 stop depth exporter
-stop camera recorders
+stop configured camera backend recorders
 close cameras when configured
 ```
 
 If any enabled recording module fails to start, the session controller must stop already-started modules and close any camera recorder whose native lifecycle may have been partially opened.
 
-When camera recording is enabled in non-stereo mode, each enabled camera side in the active configuration must have a matching native camera recorder assigned before the session starts.
+When camera recording is enabled with `camera.backend = "NativeCamera2"` in non-stereo mode, each enabled camera side in the active configuration must have a matching native Camera2 recorder assigned before the session starts.
 
-When `camera.stereoMode` is enabled with both camera sides enabled, the session controller must start a native stereo camera recorder instead of the independent left/right recorders. If no stereo recorder is assigned or discoverable, startup must fail with a clear error rather than silently falling back to independent recording.
+When `camera.backend = "NativeCamera2"` and `camera.stereoMode` is enabled with both camera sides enabled, the session controller must start a native stereo Camera2 recorder instead of the independent left/right recorders. If no stereo recorder is assigned or discoverable, startup must fail with a clear error rather than silently falling back to independent recording.
+
+When `camera.backend = "MRUK"`, the session controller must route camera recording through MRUK recorder components and the MRUK output layout. MRUK recording must not use legacy Camera2 YUV paths unless the implementation intentionally produces valid legacy-compatible YUV output and the relevant specifications are updated.
 
 Depth and pose modules must report start success or failure to the session controller so that session startup does not silently continue after output initialization fails.
 
@@ -149,27 +180,37 @@ recording_config.json
 
 On Android devices, this allows configuration override through adb by placing `recording_config.json` in the app persistent files directory. The exact package-specific absolute path is determined by Unity at runtime through `Application.persistentDataPath`.
 
-A missing external configuration file must not be treated as a startup error. Missing configuration should fall back to the assigned `TextAsset`, then to defaults that preserve the legacy output layout.
+A missing external configuration file must not be treated as a startup error. Missing configuration should fall back to the assigned `TextAsset`, then to built-in defaults.
 
-Default values are authoritative and must match `legacy_recording_format.md` unless explicitly changed through compatibility review:
+The built-in default camera backend is MRUK. Camera2-compatible output remains available by explicitly setting `camera.backend` to `NativeCamera2`.
+
+Default values are authoritative. Camera2-compatible output values must match `legacy_recording_format.md`; MRUK defaults intentionally select the MRUK backend and MRUK camera output layout:
 
 ```text
 sessionNameFormat = yyyyMMdd_HHmmss
 camera.enabled = true
+camera.backend = MRUK
 camera.targetSaveFps = 10
 camera.preferOpenByCameraId = true
 camera.allowJavaMetadataFallback = false
 camera.stereoMode = false
 camera.stereoMaxTimeDeltaSeconds = 0.02
 camera.stereoPairFileName = stereo_pairs.csv
+camera.mrukStereoPairFileName = mruk_stereo_pairs.csv
 camera.left.enabled = true
 camera.left.imageDirectoryName = left_camera_raw
 camera.left.metadataFileName = left_camera_characteristics.json
 camera.left.formatInfoFileName = left_camera_image_format.json
+camera.left.mrukImageDirectoryName = left_camera_mruk_rgba
+camera.left.mrukIntrinsicsFileName = left_camera_mruk_intrinsics.json
+camera.left.mrukFrameMetadataFileName = left_camera_mruk_frame_metadata.csv
 camera.right.enabled = true
 camera.right.imageDirectoryName = right_camera_raw
 camera.right.metadataFileName = right_camera_characteristics.json
 camera.right.formatInfoFileName = right_camera_image_format.json
+camera.right.mrukImageDirectoryName = right_camera_mruk_rgba
+camera.right.mrukIntrinsicsFileName = right_camera_mruk_intrinsics.json
+camera.right.mrukFrameMetadataFileName = right_camera_mruk_frame_metadata.csv
 depth.enabled = true
 depth.targetSaveFps = 10
 depth.leftDirectoryName = left_depth
@@ -219,23 +260,31 @@ Supported configuration fields include:
   "sessionNameFormat": "yyyyMMdd_HHmmss",
   "camera": {
     "enabled": true,
+    "backend": "MRUK",
     "targetSaveFps": 10,
     "preferOpenByCameraId": true,
     "allowJavaMetadataFallback": false,
     "stereoMode": false,
     "stereoMaxTimeDeltaSeconds": 0.02,
     "stereoPairFileName": "stereo_pairs.csv",
+    "mrukStereoPairFileName": "mruk_stereo_pairs.csv",
     "left": {
       "enabled": true,
       "imageDirectoryName": "left_camera_raw",
       "metadataFileName": "left_camera_characteristics.json",
-      "formatInfoFileName": "left_camera_image_format.json"
+      "formatInfoFileName": "left_camera_image_format.json",
+      "mrukImageDirectoryName": "left_camera_mruk_rgba",
+      "mrukIntrinsicsFileName": "left_camera_mruk_intrinsics.json",
+      "mrukFrameMetadataFileName": "left_camera_mruk_frame_metadata.csv"
     },
     "right": {
       "enabled": true,
       "imageDirectoryName": "right_camera_raw",
       "metadataFileName": "right_camera_characteristics.json",
-      "formatInfoFileName": "right_camera_image_format.json"
+      "formatInfoFileName": "right_camera_image_format.json",
+      "mrukImageDirectoryName": "right_camera_mruk_rgba",
+      "mrukIntrinsicsFileName": "right_camera_mruk_intrinsics.json",
+      "mrukFrameMetadataFileName": "right_camera_mruk_frame_metadata.csv"
     }
   },
   "depth": {
@@ -322,4 +371,35 @@ When `camera.stereoMode` is true and both left and right camera sides are enable
 
 `camera.targetSaveFps` applies to saved stereo pairs in stereo mode. `camera.stereoMaxTimeDeltaSeconds` defines the maximum allowed native timestamp difference between paired left and right frames. `camera.stereoPairFileName` names the CSV written at the session root that associates left and right `.yuv` files.
 
-When stereo mode is false, existing independent left/right native camera recorder behavior is preserved. The packaged default configuration keeps stereo mode disabled so existing workflows remain unchanged unless the user enables stereo mode in JSON.
+When `camera.backend` is `NativeCamera2` and stereo mode is false, existing independent left/right native camera recorder behavior is preserved. The packaged default configuration keeps stereo mode disabled; Camera2 workflows remain opt-in through `camera.backend = "NativeCamera2"`.
+
+
+---
+
+# Camera Backend Selection
+
+Camera recording is selected by `camera.backend`.
+
+Supported values are:
+
+```text
+MRUK
+NativeCamera2
+```
+
+`MRUK` is the default backend for new configuration because it provides frame-timestamped camera pose through the MRUK camera API. Missing `camera.backend` values in older configuration files should be normalized to `MRUK` unless a compatibility migration explicitly chooses otherwise.
+
+`NativeCamera2` preserves the existing native Camera2 recorder behavior and writes legacy-compatible YUV output as defined in `legacy_recording_format.md` and `yuv_storage_format.md`.
+
+`MRUK` writes the MRUK-specific output layout defined in `mruk_recording_format.md`. The existing `camera.left.imageDirectoryName`, `camera.left.metadataFileName`, `camera.left.formatInfoFileName`, and matching right-side fields remain Camera2-compatible fields and must not be reused for MRUK RGBA output.
+
+The session controller must write `session_info.json` after backend normalization so postprocess sees the realized backend:
+
+```json
+{
+  "sessionFormatVersion": 2,
+  "captureBackend": "MRUK"
+}
+```
+
+The requested backend in configuration and the realized backend in `session_info.json` should match. If startup falls back to another backend, the fallback must be explicit, logged, and reflected in `session_info.json`.

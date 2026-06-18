@@ -16,6 +16,14 @@ This document is the authoritative specification for recorded YUV frame byte lay
 
 ---
 
+# Backend Scope
+
+This specification applies only to Camera2-compatible YUV persistence. It does not apply to MRUK RGBA frame files.
+
+MRUK output must not use the `.yuv` extension or legacy YUV directories unless the implementation writes actual Camera2-compatible YUV plane data described by this specification.
+
+---
+
 # Compatibility Goal
 
 The Android NDK implementation must preserve recorded frame compatibility with the existing Kotlin/Camera2 implementation.

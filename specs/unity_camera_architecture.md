@@ -16,7 +16,9 @@ Native plugin behavior is defined in `native_camera_plugin.md`.
 
 Recorded YUV format behavior is defined in `yuv_storage_format.md`.
 
-Recording session orchestration, path ownership, and JSON configuration behavior are defined in `recording_session.md`.
+MRUK camera output behavior is defined in `mruk_recording_format.md`.
+
+Recording session orchestration, path ownership, backend selection, and JSON configuration behavior are defined in `recording_session.md`.
 
 ---
 
@@ -202,3 +204,25 @@ Recommended sequence:
 4. Route a minimal scene path through the native recorder.
 5. Validate `.yuv` compatibility with downstream processing.
 6. Refactor scene/UI organization after native compatibility is confirmed.
+
+
+---
+
+# Camera Backend Abstraction
+
+Unity camera recording should be selected through the session configuration field `camera.backend`.
+
+Supported camera backends are:
+
+```text
+MRUK
+NativeCamera2
+```
+
+Backend-specific recorder components should implement a common scene-facing lifecycle so `RecordingSessionController` can route recording without exposing backend-specific APIs to UI code.
+
+Native Camera2 recorder components must preserve the existing native lifecycle and legacy YUV output behavior.
+
+MRUK recorder components must use MRUK camera APIs, frame-timestamped MRUK camera pose, and the MRUK output layout. MRUK recorders must not call native Camera2 bridge APIs or write to Camera2 YUV output paths.
+
+The session controller owns backend selection. Individual recorder components should not independently decide whether to switch backend based on availability unless the fallback is explicit, logged, and reflected in session metadata.

@@ -2,6 +2,12 @@
 
 Authoritative description of the QuestRealityCapture recording output format that downstream tooling depends on.
 
+## Backend Scope
+
+This format applies to Camera2-compatible recording backends, including the native Camera2 backend.
+
+MRUK camera recording is a separate backend and is specified in `mruk_recording_format.md`. MRUK output must not be written into this legacy layout unless it is intentionally converted into true legacy-compatible YUV output and the conversion is covered by specification review.
+
 ## Session Layout
 
 ```text
@@ -61,3 +67,23 @@ Descriptor header:
 ```csv
 timestamp_ms,ovr_timestamp,create_pose_location_x,create_pose_location_y,create_pose_location_z,create_pose_rotation_x,create_pose_rotation_y,create_pose_rotation_z,create_pose_rotation_w,fov_left_angle_tangent,fov_right_angle_tangent,fov_top_angle_tangent,fov_down_angle_tangent,near_z,far_z,width,height
 ```
+
+
+## Session Metadata
+
+New sessions should include a root-level metadata file:
+
+```text
+session_info.json
+```
+
+For legacy Camera2-compatible output, the minimum expected content is:
+
+```json
+{
+  "sessionFormatVersion": 2,
+  "captureBackend": "NativeCamera2"
+}
+```
+
+Older sessions may not contain `session_info.json`; downstream tools may treat such sessions as legacy Camera2-compatible output only when the legacy path layout is present.
