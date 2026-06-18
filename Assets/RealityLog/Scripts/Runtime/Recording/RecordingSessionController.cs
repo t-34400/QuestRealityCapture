@@ -14,7 +14,7 @@ namespace RealityLog.Recording
         [SerializeField] private string externalConfigPath = RecordingConfigLoader.DefaultExternalConfigPath;
         [SerializeField] private NativeCameraRecorder[] cameraRecorders = new NativeCameraRecorder[0];
         [SerializeField] private NativeStereoCameraRecorder? stereoCameraRecorder = null;
-        [SerializeField] private MrukCameraProbeRecorder? mrukCameraProbeRecorder = null;
+        [SerializeField] private MrukCameraRecorder? mrukCameraRecorder = null;
         [SerializeField] private DepthMapExporter? depthExporter = null;
         [SerializeField] private LiveDepthCoverageVisualizer? liveDepthCoverageVisualizer = null;
         [SerializeField] private RecordingDiagnosticsController? recordingDiagnostics = null;
@@ -27,7 +27,7 @@ namespace RealityLog.Recording
         private readonly RecordingSessionPathProvider pathProvider = new();
         private readonly List<NativeCameraRecorder> startedCameraRecorders = new();
         private NativeStereoCameraRecorder? startedStereoCameraRecorder;
-        private MrukCameraProbeRecorder? startedMrukCameraProbeRecorder;
+        private MrukCameraRecorder? startedMrukCameraRecorder;
         private readonly List<PoseLogger> startedPoseLoggers = new();
         private RecordingSessionConfig? activeConfig;
         private RecordingSessionPaths? activePaths;
@@ -147,10 +147,10 @@ namespace RealityLog.Recording
 
             if (IsMrukBackend(config))
             {
-                EnsureMrukCameraProbeRecorderReference();
-                if (mrukCameraProbeRecorder == null)
+                EnsureMrukCameraRecorderReference();
+                if (mrukCameraRecorder == null)
                 {
-                    Debug.LogError($"[{Constants.LOG_TAG}] MRUK camera backend is selected, but no MRUK camera probe recorder is assigned.");
+                    Debug.LogError($"[{Constants.LOG_TAG}] MRUK camera backend is selected, but no MRUK camera recorder is assigned.");
                     return false;
                 }
 
@@ -225,19 +225,19 @@ namespace RealityLog.Recording
             return stereoCameraRecorder != null && RequiresStereoCameraRecorder(config);
         }
 
-        private void EnsureMrukCameraProbeRecorderReference()
+        private void EnsureMrukCameraRecorderReference()
         {
-            if (mrukCameraProbeRecorder != null)
+            if (mrukCameraRecorder != null)
             {
                 return;
             }
 
-            mrukCameraProbeRecorder = GetComponentInChildren<MrukCameraProbeRecorder>(includeInactive: true)
-                ?? FindAnyObjectByType<MrukCameraProbeRecorder>(FindObjectsInactive.Include);
+            mrukCameraRecorder = GetComponentInChildren<MrukCameraRecorder>(includeInactive: true)
+                ?? FindAnyObjectByType<MrukCameraRecorder>(FindObjectsInactive.Include);
 
-            if (mrukCameraProbeRecorder != null)
+            if (mrukCameraRecorder != null)
             {
-                Debug.Log($"[{Constants.LOG_TAG}] Recording session found MRUK camera probe recorder automatically: {mrukCameraProbeRecorder.name}");
+                Debug.Log($"[{Constants.LOG_TAG}] Recording session found MRUK camera recorder automatically: {mrukCameraRecorder.name}");
             }
         }
 
@@ -287,7 +287,7 @@ namespace RealityLog.Recording
         {
             if (IsMrukBackend(config))
             {
-                mrukCameraProbeRecorder?.ApplyConfiguration(config, paths);
+                mrukCameraRecorder?.ApplyConfiguration(config, paths);
             }
             else if (IsNativeCamera2Backend(config))
             {
@@ -375,8 +375,8 @@ namespace RealityLog.Recording
 
             if (IsMrukBackend(config))
             {
-                startedMrukCameraProbeRecorder = mrukCameraProbeRecorder;
-                return startedMrukCameraProbeRecorder != null && startedMrukCameraProbeRecorder.StartRecording();
+                startedMrukCameraRecorder = mrukCameraRecorder;
+                return startedMrukCameraRecorder != null && startedMrukCameraRecorder.StartRecording();
             }
 
             if (ShouldUseStereoCameraRecorder(config))
@@ -524,10 +524,10 @@ namespace RealityLog.Recording
                 depthStarted = false;
             }
 
-            if (startedMrukCameraProbeRecorder != null)
+            if (startedMrukCameraRecorder != null)
             {
-                success &= startedMrukCameraProbeRecorder.StopRecording();
-                startedMrukCameraProbeRecorder = null;
+                success &= startedMrukCameraRecorder.StopRecording();
+                startedMrukCameraRecorder = null;
             }
 
             if (startedStereoCameraRecorder != null)
@@ -563,7 +563,7 @@ namespace RealityLog.Recording
             depthStarted = false;
             liveCoverageStarted = false;
             diagnosticsStarted = false;
-            startedMrukCameraProbeRecorder = null;
+            startedMrukCameraRecorder = null;
         }
 
         private void Start()
