@@ -14,6 +14,8 @@ namespace RealityLog.Recording
         [SerializeField] private string externalConfigPath = RecordingConfigLoader.DefaultExternalConfigPath;
         [SerializeField] private NativeCameraRecorder[] cameraRecorders = new NativeCameraRecorder[0];
         [SerializeField] private DepthMapExporter? depthExporter = null;
+        [SerializeField] private LiveDepthCoverageVisualizer? liveDepthCoverageVisualizer = null;
+        [SerializeField] private RecordingDiagnosticsController? recordingDiagnostics = null;
         [SerializeField] private PoseLogger? poseLogger = null;
         [SerializeField] private PoseLogger[] poseLoggers = new PoseLogger[0];
         [SerializeField] private bool startRecordingOnStart = false;
@@ -26,6 +28,8 @@ namespace RealityLog.Recording
         private RecordingSessionConfig? activeConfig;
         private RecordingSessionPaths? activePaths;
         private bool depthStarted;
+        private bool liveCoverageStarted;
+        private bool diagnosticsStarted;
         private bool recording;
         private float nextRecordingToggleRealtime;
 
@@ -86,6 +90,9 @@ namespace RealityLog.Recording
                 ClearActiveSessionState();
                 return false;
             }
+
+            StartLiveCoverage(activeConfig);
+            StartRecordingDiagnostics(activeConfig);
 
             if (!StartPoseLogger(activeConfig))
             {
@@ -184,9 +191,29 @@ namespace RealityLog.Recording
             }
 
             depthExporter?.ApplyConfiguration(config.depth, paths.Depth);
+            liveDepthCoverageVisualizer?.ApplyConfiguration(CreateDepthCoverageSettings(config.liveFeedback.coverage));
+            recordingDiagnostics?.ApplyConfiguration(config.liveFeedback);
             ConfigurePoseLoggers(config.pose, paths.Pose);
         }
 
+        private static DepthCoverageSettings CreateDepthCoverageSettings(RecordingSessionConfig.CoverageConfig config)
+        {
+            return new DepthCoverageSettings(
+                config.enabled,
+                config.targetUpdateFps,
+                config.samplingStep,
+                config.voxelSizeMeters,
+                config.maxVoxels,
+                config.minDepthMeters,
+                config.maxDepthMeters,
+                DepthCoverageSettings.ParseEye(config.eye),
+                config.showSampleFrustums,
+                config.frustumSampleIntervalSeconds,
+                config.maxFrustumSamples,
+                config.logPoseDiagnostics,
+                config.poseDiagnosticIntervalSeconds,
+                config.flipVerticalProjection);
+        }
 
         private void ConfigurePoseLoggers(RecordingSessionConfig.PoseConfig config, RecordingSessionPaths.PosePaths paths)
         {
@@ -266,6 +293,57 @@ namespace RealityLog.Recording
             return true;
         }
 
+
+        private void StartLiveCoverage(RecordingSessionConfig config)
+        {
+            if (!config.liveFeedback.enabled || !config.liveFeedback.coverage.enabled)
+            {
+                Debug.Log($"[{Constants.LOG_TAG}] Live depth coverage disabled by config. liveFeedback={config.liveFeedback.enabled}, coverage={config.liveFeedback.coverage.enabled}");
+                return;
+            }
+
+            if (liveDepthCoverageVisualizer == null)
+            {
+                Debug.LogWarning($"[{Constants.LOG_TAG}] Live depth coverage is enabled, but no LiveDepthCoverageVisualizer is assigned.");
+                return;
+            }
+
+            if (!liveDepthCoverageVisualizer.TryStartVisualization())
+            {
+                Debug.LogWarning($"[{Constants.LOG_TAG}] Live depth coverage failed to start. Recording will continue without coverage visualization.");
+                return;
+            }
+
+            liveCoverageStarted = true;
+            Debug.Log($"[{Constants.LOG_TAG}] Live depth coverage started.");
+        }
+
+
+        private void StartRecordingDiagnostics(RecordingSessionConfig config)
+        {
+            if (!config.liveFeedback.enabled || !config.liveFeedback.diagnostics.enabled)
+            {
+                Debug.Log($"[{Constants.LOG_TAG}] Recording diagnostics disabled by config. liveFeedback={config.liveFeedback.enabled}, diagnostics={config.liveFeedback.diagnostics.enabled}");
+                return;
+            }
+
+            if (recordingDiagnostics == null)
+            {
+                recordingDiagnostics = GetComponent<RecordingDiagnosticsController>() ?? gameObject.AddComponent<RecordingDiagnosticsController>();
+            }
+
+            recordingDiagnostics.ApplyConfiguration(config.liveFeedback);
+            var coverageForDiagnostics = liveCoverageStarted ? liveDepthCoverageVisualizer : null;
+            if (!recordingDiagnostics.TryStartDiagnostics(coverageForDiagnostics))
+            {
+                Debug.LogWarning($"[{Constants.LOG_TAG}] Recording diagnostics failed to start. Recording will continue without diagnostics overlays.");
+                return;
+            }
+
+            diagnosticsStarted = true;
+            Debug.Log($"[{Constants.LOG_TAG}] Recording diagnostics started.");
+        }
+
         private bool StartPoseLogger(RecordingSessionConfig config)
         {
             if (!config.pose.enabled)
@@ -302,6 +380,18 @@ namespace RealityLog.Recording
 
             startedPoseLoggers.Clear();
 
+            if (diagnosticsStarted && recordingDiagnostics != null)
+            {
+                recordingDiagnostics.StopDiagnostics();
+                diagnosticsStarted = false;
+            }
+
+            if (liveCoverageStarted && liveDepthCoverageVisualizer != null)
+            {
+                liveDepthCoverageVisualizer.StopVisualization();
+                liveCoverageStarted = false;
+            }
+
             if (depthStarted && depthExporter != null)
             {
                 depthExporter.StopExport();
@@ -328,6 +418,8 @@ namespace RealityLog.Recording
             activeConfig = null;
             activePaths = null;
             depthStarted = false;
+            liveCoverageStarted = false;
+            diagnosticsStarted = false;
         }
 
         private void Start()

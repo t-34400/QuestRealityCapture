@@ -47,3 +47,10 @@ Read `COMMON_RULES.md` before reading any other specification.
 
 * `legacy_recording_format.md`
   * Defines the canonical QuestRealityCapture recording output layout and compatibility requirements.
+
+
+## Live Recording Feedback
+
+* `live_recording_feedback.md`
+  * Defines optional Quest-side live feedback for capture coverage, diagnostics overlays, GPU readback ownership, and related JSON configuration.
+  * Read before modifying live coverage visualization, recording diagnostics overlays, or `liveFeedback` configuration handling.

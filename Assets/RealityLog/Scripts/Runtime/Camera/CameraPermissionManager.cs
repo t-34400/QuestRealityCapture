@@ -25,9 +25,11 @@ namespace RealityLog.Camera
         [SerializeField] private bool initializeLegacyJavaCameraManager = true;
 
         private readonly Queue<string> pendingPermissionRequests = new();
+#if UNITY_ANDROID && !UNITY_EDITOR
         private PermissionCallbacks? permissionCallbacks;
         private bool permissionRequestInProgress;
         private bool legacyCameraManagerInitializationStarted;
+#endif
 
         public bool HasRequiredCameraPermission => HasConfiguredCameraPermissions();
 
@@ -37,8 +39,10 @@ namespace RealityLog.Camera
         public AndroidJavaObject? CameraManagerJavaInstance { get; private set; }
 
         public event Action? CameraPermissionGranted;
+#pragma warning disable CS0067
         public event Action<string>? CameraPermissionDenied;
         public event Action<AndroidJavaObject>? CameraManagerInstantiated;
+#pragma warning restore CS0067
 
         private void Start()
         {
@@ -152,9 +156,11 @@ namespace RealityLog.Camera
         private void DestroyInstance()
         {
             pendingPermissionRequests.Clear();
+#if UNITY_ANDROID && !UNITY_EDITOR
             permissionRequestInProgress = false;
             permissionCallbacks = null;
             legacyCameraManagerInitializationStarted = false;
+#endif
             DestroyLegacyCameraManager();
             StopAllCoroutines();
         }

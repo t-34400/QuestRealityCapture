@@ -1,0 +1,122 @@
+#pragma kernel ClearCoverage
+#pragma kernel UpdateCoverage
+
+Texture2DArray<float> _DepthTexture;
+RWStructuredBuffer<int4> _VoxelKeys;
+RWStructuredBuffer<int> _VoxelOccupancy;
+RWStructuredBuffer<float4> _CoveragePoints;
+RWStructuredBuffer<float2> _CoverageMetadata;
+
+int _Width;
+int _Height;
+int _EyeIndex;
+int _SamplingStep;
+int _MaxVoxels;
+int _SegmentId;
+float _VoxelSizeMeters;
+float _MinDepthMeters;
+float _MaxDepthMeters;
+float _FovLeftTan;
+float _FovRightTan;
+float _FovTopTan;
+float _FovDownTan;
+float _NearZ;
+float _FarZ;
+int _UseInfiniteFar;
+int _FlipVerticalProjection;
+float4x4 _DepthCameraToWorld;
+
+static const int kMaxProbeCount = 8;
+static const int kEmptyVoxel = 0;
+static const int kOccupiedVoxel = 1;
+
+uint HashVoxel(int3 voxel, int segmentId)
+{
+    uint x = (uint)voxel.x * 73856093u;
+    uint y = (uint)voxel.y * 19349663u;
+    uint z = (uint)voxel.z * 83492791u;
+    uint s = (uint)segmentId * 2654435761u;
+    return x ^ y ^ z ^ s;
+}
+
+float3 PixelToDepthCamera(float depthMeters, uint sourceX, uint sourceY)
+{
+    float u = ((float)sourceX + 0.5f) / max(1.0f, (float)_Width);
+    float v = ((float)sourceY + 0.5f) / max(1.0f, (float)_Height);
+    float xTan = lerp(-_FovLeftTan, _FovRightTan, u);
+    float yTan = _FlipVerticalProjection != 0
+        ? lerp(_FovTopTan, -_FovDownTan, v)
+        : lerp(-_FovDownTan, _FovTopTan, v);
+    return float3(xTan * depthMeters, yTan * depthMeters, -depthMeters);
+}
+
+[numthreads(64, 1, 1)]
+void ClearCoverage(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)_MaxVoxels) return;
+    _VoxelKeys[id.x] = int4(0, 0, 0, 0);
+    _VoxelOccupancy[id.x] = kEmptyVoxel;
+    _CoveragePoints[id.x] = float4(0.0f, 0.0f, 0.0f, -1.0f);
+    _CoverageMetadata[id.x] = float2(-1.0f, 0.0f);
+}
+
+[numthreads(8, 8, 1)]
+void UpdateCoverage(uint3 id : SV_DispatchThreadID)
+{
+    uint sourceX = id.x * (uint)_SamplingStep;
+    uint sourceY = id.y * (uint)_SamplingStep;
+    if (sourceX >= (uint)_Width || sourceY >= (uint)_Height) return;
+
+    uint textureY = (uint)_Height - sourceY - 1u;
+    float rawDepth = _DepthTexture.Load(int4((int)sourceX, (int)textureY, _EyeIndex, 0));
+    if (rawDepth != rawDepth || rawDepth <= 0.0f || rawDepth >= 1.0f) return;
+
+    float depthScale = -2.0f * _NearZ;
+    float depthBias = -1.0f;
+    if (_UseInfiniteFar == 0)
+    {
+        float depthRange = _FarZ - _NearZ;
+        if (depthRange > 1.0e-6f)
+        {
+            depthScale = -2.0f * _FarZ * _NearZ / depthRange;
+            depthBias = -(_FarZ + _NearZ) / depthRange;
+        }
+    }
+
+    float ndcDepth = rawDepth * 2.0f - 1.0f;
+    float denom = ndcDepth + depthBias;
+    if (abs(denom) < 1.0e-6f) return;
+
+    float depthMeters = depthScale / denom;
+    if (depthMeters != depthMeters || depthMeters < _MinDepthMeters || depthMeters > _MaxDepthMeters) return;
+
+    float3 cameraPoint = PixelToDepthCamera(depthMeters, sourceX, sourceY);
+    float3 worldPoint = mul(_DepthCameraToWorld, float4(cameraPoint, 1.0f)).xyz;
+    int3 voxel = (int3)floor(worldPoint / _VoxelSizeMeters);
+    uint baseSlot = HashVoxel(voxel, _SegmentId) % (uint)_MaxVoxels;
+
+    [unroll]
+    for (int probe = 0; probe < kMaxProbeCount; ++probe)
+    {
+        uint slot = (baseSlot + (uint)probe) % (uint)_MaxVoxels;
+        int previous;
+        InterlockedCompareExchange(_VoxelOccupancy[slot], kEmptyVoxel, kOccupiedVoxel, previous);
+
+        int4 key = _VoxelKeys[slot];
+        if (previous == kEmptyVoxel)
+        {
+            _VoxelKeys[slot] = int4(voxel, _SegmentId);
+            _CoveragePoints[slot] = float4(((float3)voxel + 0.5f) * _VoxelSizeMeters, (float)_SegmentId);
+            _CoverageMetadata[slot] = float2((float)_SegmentId, depthMeters);
+            return;
+        }
+
+        if (_VoxelOccupancy[slot] == kOccupiedVoxel && key.x == voxel.x && key.y == voxel.y && key.z == voxel.z && key.w == _SegmentId)
+        {
+            _CoveragePoints[slot] = float4(((float3)voxel + 0.5f) * _VoxelSizeMeters, (float)_SegmentId);
+            float storedDepth = _CoverageMetadata[slot].y;
+            _CoverageMetadata[slot] = float2((float)_SegmentId, min(storedDepth, depthMeters));
+            return;
+        }
+    }
+}

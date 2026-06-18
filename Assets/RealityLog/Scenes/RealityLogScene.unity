@@ -169,6 +169,8 @@ MonoBehaviour:
   - {fileID: 950167288}
   - {fileID: 1276772011}
   depthExporter: {fileID: 338253293}
+  liveDepthCoverageVisualizer: {fileID: 338253294}
+  recordingDiagnostics: {fileID: 0}
   poseLogger: {fileID: 0}
   poseLoggers:
   - {fileID: 708566676}
@@ -434,6 +436,7 @@ GameObject:
   m_Component:
   - component: {fileID: 338253292}
   - component: {fileID: 338253293}
+  - component: {fileID: 338253294}
   m_Layer: 0
   m_Name: DepthMapExporter
   m_TagString: Untagged
@@ -475,6 +478,34 @@ MonoBehaviour:
   leftDepthDescFileName: left_depth_descriptors.csv
   rightDepthDescFileName: right_depth_descriptors.csv
   targetSaveFps: 0
+  depthFrameProvider: {fileID: 0}
+--- !u!114 &338253294
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 338253291}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 696bfb1b987444cfa45e3580554e135a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RealityLog.Depth::RealityLog.Depth.LiveDepthCoverageVisualizer
+  depthFrameProvider: {fileID: 0}
+  updateCoverageShader: {fileID: 7200000, guid: e6a8bec14d91c14162dfe8dd58cdf2db, type: 3}
+  coveragePointShader: {fileID: 4800000, guid: 0b1856a464765232bed2409446de1b7c, type: 3}
+  coveragePointMaterial: {fileID: 0}
+  trackingSpace: {fileID: 0}
+  renderMode: 0
+  pointSizeMeters: 0.01
+  previousSegmentAlpha: 0.22
+  particleRefreshIntervalSeconds: 0.25
+  editorCoverageSource: 0
+  startEditorDebugOnPlay: 0
+  editorDebugGridResolution: 11
+  editorDebugGridSizeMeters: 2
+  editorDebugGridDistanceMeters: 2
+  editorDebugAxisLengthMeters: 1
 --- !u!1 &353022599
 GameObject:
   m_ObjectHideFlags: 0

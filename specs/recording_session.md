@@ -101,6 +101,7 @@ create session paths
 apply config to modules
 start camera recorders
 start depth exporter
+start optional live feedback overlays
 start pose loggers
 ```
 
@@ -108,6 +109,7 @@ The default stop sequence is:
 
 ```text
 stop pose loggers
+stop optional live feedback overlays
 stop depth exporter
 stop camera recorders
 close cameras when configured
@@ -118,6 +120,10 @@ If any enabled recording module fails to start, the session controller must stop
 When camera recording is enabled, each enabled camera side in the active configuration must have a matching native camera recorder assigned before the session starts.
 
 Depth and pose modules must report start success or failure to the session controller so that session startup does not silently continue after output initialization fails.
+
+Depth frame acquisition should be isolated from depth persistence so that recording diagnostics or live feedback can share the current GPU depth texture without adding another GPU-to-CPU readback path. A depth exporter may depend on a scene-facing depth frame provider, but the exporter remains the owner of raw depth file output and descriptor CSV output.
+
+Live feedback overlays, including coverage and diagnostics, are optional operator aids. Startup failures in these overlays should be logged as warnings and must not fail or stop the recording session.
 
 The session controller should expose a simple scene-facing method:
 
@@ -170,6 +176,27 @@ pose.targetSaveFps = 30
 pose.hmdFileName = hmd_poses.csv
 pose.leftControllerFileName = left_controller_poses.csv
 pose.rightControllerFileName = right_controller_poses.csv
+liveFeedback.enabled = true
+liveFeedback.coverage.enabled = true
+liveFeedback.coverage.targetUpdateFps = 3
+liveFeedback.coverage.samplingStep = 24
+liveFeedback.coverage.voxelSizeMeters = 0.15
+liveFeedback.coverage.maxVoxels = 30000
+liveFeedback.coverage.minDepthMeters = 0.3
+liveFeedback.coverage.maxDepthMeters = 5.0
+liveFeedback.coverage.eye = left
+liveFeedback.coverage.showSampleFrustums = false
+liveFeedback.coverage.frustumSampleIntervalSeconds = 1.0
+liveFeedback.coverage.maxFrustumSamples = 24
+liveFeedback.coverage.logPoseDiagnostics = false
+liveFeedback.coverage.poseDiagnosticIntervalSeconds = 1.0
+liveFeedback.coverage.flipVerticalProjection = true
+liveFeedback.diagnostics.enabled = true
+liveFeedback.diagnostics.showHud = false
+liveFeedback.diagnostics.showTrajectory = true
+liveFeedback.diagnostics.showTrackingEvents = true
+liveFeedback.diagnostics.positionJumpMeters = 0.3
+liveFeedback.diagnostics.rotationJumpDegrees = 30.0
 ```
 
 Packaged example/default JSON should remain available at:
@@ -217,12 +244,52 @@ Supported configuration fields include:
     "hmdFileName": "hmd_poses.csv",
     "leftControllerFileName": "left_controller_poses.csv",
     "rightControllerFileName": "right_controller_poses.csv"
+  },
+  "liveFeedback": {
+    "enabled": true,
+    "coverage": {
+      "enabled": true,
+      "targetUpdateFps": 3,
+      "samplingStep": 24,
+      "voxelSizeMeters": 0.15,
+      "maxVoxels": 30000,
+      "minDepthMeters": 0.3,
+      "maxDepthMeters": 5.0,
+      "eye": "left",
+      "showSampleFrustums": false,
+      "frustumSampleIntervalSeconds": 1.0,
+      "maxFrustumSamples": 24,
+      "logPoseDiagnostics": false,
+      "poseDiagnosticIntervalSeconds": 1.0,
+      "flipVerticalProjection": true
+    },
+    "diagnostics": {
+      "enabled": true,
+      "showHud": false,
+      "showTrajectory": true,
+      "showTrackingEvents": true,
+      "positionJumpMeters": 0.3,
+      "rotationJumpDegrees": 30.0
+    }
   }
 }
 ```
+
+
+Live feedback configuration is defined in `live_recording_feedback.md`. The recording session configuration owns deserialization and defaulting of the `liveFeedback` block, but live feedback remains optional and must not change the recording output layout.
 
 `targetSaveFps` values should be interpreted as save-rate throttles. They should not imply that the underlying camera, depth, or tracking systems must change their capture/update rate.
 
 A `targetSaveFps` value of zero means that every eligible update may be saved.
 
 Negative FPS values are invalid and should be avoided by configuration authors.
+
+---
+
+# Live Coverage Session Hook
+
+Recording session orchestration may start optional live coverage feedback after depth export startup and before pose logging startup.
+
+Live coverage feedback is not a persistence module. Failure to start live coverage must not fail the recording session, and live coverage must not change session directory creation or recorded file layouts.
+
+On stop, live coverage feedback should be stopped before depth export so shared depth provider usage is released before the depth exporter is stopped.
