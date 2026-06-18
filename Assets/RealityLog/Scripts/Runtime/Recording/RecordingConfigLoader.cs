@@ -137,6 +137,7 @@ namespace RealityLog.Recording
             coverage.minDepthMeters = NormalizePositiveFloat(coverage.minDepthMeters, 0.3f, "liveFeedback.coverage.minDepthMeters");
             coverage.maxDepthMeters = NormalizeDepthMax(coverage.maxDepthMeters, coverage.minDepthMeters, "liveFeedback.coverage.maxDepthMeters");
             coverage.eye = NormalizeEye(coverage.eye, "liveFeedback.coverage.eye");
+            coverage.poseDiagnosticIntervalSeconds = NormalizePositiveFloat(coverage.poseDiagnosticIntervalSeconds, 1.0f, "liveFeedback.coverage.poseDiagnosticIntervalSeconds");
 
             var diagnostics = config.liveFeedback.diagnostics;
             diagnostics.positionJumpMeters = NormalizePositiveFloat(diagnostics.positionJumpMeters, 0.3f, "liveFeedback.diagnostics.positionJumpMeters");

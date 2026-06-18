@@ -11,14 +11,19 @@ namespace RealityLog.Depth
         private ParticleSystem? particleSystem;
         private ParticleSystem.Particle[]? particles;
         private Vector4[]? readbackPoints;
+        private Vector2[]? readbackMetadata;
         private int[]? readbackOccupancy;
         private bool isReadbackPending;
         private bool hasPointsReadback;
+        private bool hasMetadataReadback;
         private bool hasOccupancyReadback;
         private float nextRefreshRealtime;
         private int maxParticles;
         private float pointSizeMeters;
         private float previousSegmentAlpha;
+        private float minDepthMeters;
+        private float maxDepthMeters;
+        private Material? particleMaterial;
         private int currentSegmentId;
         private bool isActive;
 
@@ -26,11 +31,15 @@ namespace RealityLog.Depth
             Transform parent,
             int maxVoxels,
             float pointSizeMeters,
-            float previousSegmentAlpha)
+            float previousSegmentAlpha,
+            float minDepthMeters,
+            float maxDepthMeters)
         {
             maxParticles = Mathf.Max(1, maxVoxels);
             this.pointSizeMeters = Mathf.Max(0.001f, pointSizeMeters);
             this.previousSegmentAlpha = Mathf.Clamp01(previousSegmentAlpha);
+            this.minDepthMeters = Mathf.Max(0.0f, minDepthMeters);
+            this.maxDepthMeters = Mathf.Max(this.minDepthMeters + 0.01f, maxDepthMeters);
             isActive = true;
             EnsureParticleSystem(parent);
             EnsureArrays(maxParticles);
@@ -57,20 +66,28 @@ namespace RealityLog.Depth
                 particleSystem = null;
             }
 
+            if (particleMaterial != null)
+            {
+                UnityEngine.Object.Destroy(particleMaterial);
+                particleMaterial = null;
+            }
+
             particles = null;
             readbackPoints = null;
+            readbackMetadata = null;
             readbackOccupancy = null;
             FinishReadback();
         }
 
         public void RefreshIfNeeded(
             ComputeBuffer coveragePointsBuffer,
+            ComputeBuffer coverageMetadataBuffer,
             ComputeBuffer voxelOccupancyBuffer,
             int currentSegmentId,
             float refreshIntervalSeconds)
         {
             if (!isActive
-                || particles == null || readbackPoints == null || readbackOccupancy == null
+                || particles == null || readbackPoints == null || readbackMetadata == null || readbackOccupancy == null
                 || Time.realtimeSinceStartup < nextRefreshRealtime
                 || isReadbackPending)
             {
@@ -82,6 +99,7 @@ namespace RealityLog.Depth
             if (!SystemInfo.supportsAsyncGPUReadback)
             {
                 coveragePointsBuffer.GetData(readbackPoints);
+                coverageMetadataBuffer.GetData(readbackMetadata);
                 voxelOccupancyBuffer.GetData(readbackOccupancy);
                 ApplyReadback();
                 return;
@@ -89,20 +107,23 @@ namespace RealityLog.Depth
 
             isReadbackPending = true;
             hasPointsReadback = false;
+            hasMetadataReadback = false;
             hasOccupancyReadback = false;
             AsyncGPUReadback.Request(coveragePointsBuffer, OnPointsReadback);
+            AsyncGPUReadback.Request(coverageMetadataBuffer, OnMetadataReadback);
             AsyncGPUReadback.Request(voxelOccupancyBuffer, OnOccupancyReadback);
         }
 
-        public void ApplyImmediate(Vector4[] points, int[] occupancy, int currentSegmentId)
+        public void ApplyImmediate(Vector4[] points, Vector2[] metadata, int[] occupancy, int currentSegmentId)
         {
-            if (!isActive || readbackPoints == null || readbackOccupancy == null)
+            if (!isActive || readbackPoints == null || readbackMetadata == null || readbackOccupancy == null)
             {
                 return;
             }
 
             this.currentSegmentId = currentSegmentId;
             Array.Copy(points, readbackPoints, Math.Min(points.Length, readbackPoints.Length));
+            Array.Copy(metadata, readbackMetadata, Math.Min(metadata.Length, readbackMetadata.Length));
             Array.Copy(occupancy, readbackOccupancy, Math.Min(occupancy.Length, readbackOccupancy.Length));
             ApplyReadback();
         }
@@ -123,6 +144,7 @@ namespace RealityLog.Depth
         {
             if (particles != null && particles.Length == size
                 && readbackPoints != null && readbackPoints.Length == size
+                && readbackMetadata != null && readbackMetadata.Length == size
                 && readbackOccupancy != null && readbackOccupancy.Length == size)
             {
                 return;
@@ -130,6 +152,7 @@ namespace RealityLog.Depth
 
             particles = new ParticleSystem.Particle[size];
             readbackPoints = new Vector4[size];
+            readbackMetadata = new Vector2[size];
             readbackOccupancy = new int[size];
         }
 
@@ -158,6 +181,18 @@ namespace RealityLog.Depth
             var renderer = particleSystem.GetComponent<ParticleSystemRenderer>();
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
             renderer.sortMode = ParticleSystemSortMode.None;
+            renderer.alignment = ParticleSystemRenderSpace.View;
+            var material = EnsureParticleMaterial();
+            if (material != null)
+            {
+                renderer.sharedMaterial = material;
+            }
+        }
+
+        private Material? EnsureParticleMaterial()
+        {
+            particleMaterial ??= DepthVisualizationMaterialFactory.CreateParticleMaterial();
+            return particleMaterial;
         }
 
         private void OnPointsReadback(AsyncGPUReadbackRequest request)
@@ -170,6 +205,19 @@ namespace RealityLog.Depth
 
             request.GetData<Vector4>().CopyTo(readbackPoints);
             hasPointsReadback = true;
+            TryApplyReadback();
+        }
+
+        private void OnMetadataReadback(AsyncGPUReadbackRequest request)
+        {
+            if (!isActive || request.hasError || readbackMetadata == null)
+            {
+                FinishReadback();
+                return;
+            }
+
+            request.GetData<Vector2>().CopyTo(readbackMetadata);
+            hasMetadataReadback = true;
             TryApplyReadback();
         }
 
@@ -188,7 +236,7 @@ namespace RealityLog.Depth
 
         private void TryApplyReadback()
         {
-            if (!hasPointsReadback || !hasOccupancyReadback)
+            if (!hasPointsReadback || !hasMetadataReadback || !hasOccupancyReadback)
             {
                 return;
             }
@@ -201,12 +249,13 @@ namespace RealityLog.Depth
         {
             isReadbackPending = false;
             hasPointsReadback = false;
+            hasMetadataReadback = false;
             hasOccupancyReadback = false;
         }
 
         private void ApplyReadback()
         {
-            if (particleSystem == null || particles == null || readbackPoints == null || readbackOccupancy == null)
+            if (particleSystem == null || particles == null || readbackPoints == null || readbackMetadata == null || readbackOccupancy == null)
             {
                 return;
             }
@@ -220,13 +269,14 @@ namespace RealityLog.Depth
                 }
 
                 var point = readbackPoints[i];
+                var metadata = readbackMetadata[i];
                 particles[count] = new ParticleSystem.Particle
                 {
                     position = new Vector3(point.x, point.y, point.z),
                     startSize = pointSizeMeters,
                     startLifetime = 999999.0f,
                     remainingLifetime = 999999.0f,
-                    startColor = ParticleColorForSegment(Mathf.RoundToInt(point.w))
+                    startColor = ParticleColor(Mathf.RoundToInt(metadata.x), metadata.y)
                 };
                 count++;
             }
@@ -234,10 +284,14 @@ namespace RealityLog.Depth
             particleSystem.SetParticles(particles, count);
         }
 
-        private Color32 ParticleColorForSegment(int segmentId)
+        private Color32 ParticleColor(int segmentId, float depthMeters)
         {
-            var alpha = segmentId == currentSegmentId ? byte.MaxValue : (byte)Mathf.RoundToInt(previousSegmentAlpha * byte.MaxValue);
-            return new Color32(byte.MaxValue, byte.MaxValue, byte.MaxValue, alpha);
+            var normalizedDepth = Mathf.InverseLerp(minDepthMeters, maxDepthMeters, depthMeters);
+            var color = Color.Lerp(new Color(1.0f, 0.36f, 0.08f), new Color(0.12f, 0.58f, 1.0f), normalizedDepth);
+            var segmentAlpha = segmentId == currentSegmentId ? 1.0f : previousSegmentAlpha;
+            var distanceAlpha = Mathf.Lerp(0.95f, 0.45f, normalizedDepth);
+            color.a = segmentAlpha * distanceAlpha;
+            return color;
         }
     }
 }

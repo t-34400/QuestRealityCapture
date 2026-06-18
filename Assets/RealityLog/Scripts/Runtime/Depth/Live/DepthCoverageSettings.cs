@@ -20,7 +20,13 @@ namespace RealityLog.Depth
             int maxVoxels,
             float minDepthMeters,
             float maxDepthMeters,
-            DepthCoverageEye eye)
+            DepthCoverageEye eye,
+            bool showSampleFrustums,
+            float frustumSampleIntervalSeconds,
+            int maxFrustumSamples,
+            bool logPoseDiagnostics,
+            float poseDiagnosticIntervalSeconds,
+            bool flipVerticalProjection)
         {
             this.enabled = enabled;
             this.targetUpdateFps = Mathf.Max(1, targetUpdateFps);
@@ -30,6 +36,12 @@ namespace RealityLog.Depth
             this.minDepthMeters = Mathf.Max(0.0f, minDepthMeters);
             this.maxDepthMeters = Mathf.Max(this.minDepthMeters + 0.01f, maxDepthMeters);
             this.eye = eye;
+            this.showSampleFrustums = showSampleFrustums;
+            this.frustumSampleIntervalSeconds = Mathf.Max(0.1f, frustumSampleIntervalSeconds);
+            this.maxFrustumSamples = Mathf.Max(0, maxFrustumSamples);
+            this.logPoseDiagnostics = logPoseDiagnostics;
+            this.poseDiagnosticIntervalSeconds = Mathf.Max(0.1f, poseDiagnosticIntervalSeconds);
+            this.flipVerticalProjection = flipVerticalProjection;
         }
 
         public readonly bool enabled;
@@ -40,6 +52,12 @@ namespace RealityLog.Depth
         public readonly float minDepthMeters;
         public readonly float maxDepthMeters;
         public readonly DepthCoverageEye eye;
+        public readonly bool showSampleFrustums;
+        public readonly float frustumSampleIntervalSeconds;
+        public readonly int maxFrustumSamples;
+        public readonly bool logPoseDiagnostics;
+        public readonly float poseDiagnosticIntervalSeconds;
+        public readonly bool flipVerticalProjection;
 
         public float UpdateIntervalSeconds => 1.0f / targetUpdateFps;
 

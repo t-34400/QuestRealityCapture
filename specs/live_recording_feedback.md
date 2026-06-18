@@ -60,6 +60,12 @@ maxVoxels = 30000
 minDepthMeters = 0.3
 maxDepthMeters = 5.0
 eye = left
+showSampleFrustums = false
+frustumSampleIntervalSeconds = 1.0
+maxFrustumSamples = 24
+logPoseDiagnostics = false
+poseDiagnosticIntervalSeconds = 1.0
+flipVerticalProjection = true
 ```
 
 Coverage implementations may keep a persistent coarse voxel map for the full recording session.
@@ -96,7 +102,13 @@ Supported fields include:
       "maxVoxels": 30000,
       "minDepthMeters": 0.3,
       "maxDepthMeters": 5.0,
-      "eye": "left"
+      "eye": "left",
+      "showSampleFrustums": false,
+      "frustumSampleIntervalSeconds": 1.0,
+      "maxFrustumSamples": 24,
+      "logPoseDiagnostics": false,
+      "poseDiagnosticIntervalSeconds": 1.0,
+      "flipVerticalProjection": true
     },
     "diagnostics": {
       "enabled": true,
@@ -123,7 +135,7 @@ When `liveFeedback.enabled` and `liveFeedback.coverage.enabled` are both true, `
 
 Live coverage startup failure must be logged as a warning and must not fail or stop the recording session.
 
-The initial implementation samples one configured depth eye, defaults to the left eye, updates at the configured low rate, converts raw depth buffer samples to linear meter depth using the corresponding `DepthFrameDesc.nearZ` and `DepthFrameDesc.farZ`, converts those depths into Quest world-space points using the corresponding `DepthFrameDesc` pose and Meta Depth API FOV conventions, inserts those points into a fixed-size GPU hash voxel map, and draws occupied voxels through a Unity Particle System renderer by default. A procedural billboard renderer may remain available as a diagnostic comparison path, but it must not be required for normal Quest runtime coverage display. Infinite or invalid far clipping values must use the infinite-far conversion branch. `DepthFrameDesc` FOV tangents must follow Meta SDK semantics and store absolute tangent magnitudes (`tan(abs(angle))`); pixel-to-camera reconstruction must explicitly project horizontal samples over `[-left, +right]` and vertical samples over `[-down, +top]`. The depth camera transform must mirror Meta SDK depth camera matrix construction by applying a `(1, 1, -1)` local scale to the `DepthFrameDesc` pose and by applying the optional tracking-space transform before writing Unity world-space coverage points.
+The initial implementation samples one configured depth eye, defaults to the left eye, updates at the configured low rate, converts raw depth buffer samples to linear meter depth using the corresponding `DepthFrameDesc.nearZ` and `DepthFrameDesc.farZ`, converts those depths into Quest world-space points using the corresponding `DepthFrameDesc` pose and Meta Depth API FOV conventions, inserts those points into a fixed-size GPU hash voxel map, stores the sampled depth for distance-based visualization, and draws occupied voxels through a Unity Particle System renderer by default. Runtime particle and frustum renderers must create an explicit supported unlit material, preferring SRP/URP-compatible shaders before falling back to built-in shaders, so live feedback does not rely on Unity's missing-material fallback. A procedural billboard renderer may remain available as a diagnostic comparison path, but it must not be required for normal Quest runtime coverage display. Infinite or invalid far clipping values must use the infinite-far conversion branch. `DepthFrameDesc` FOV tangents must follow Meta SDK semantics and store absolute tangent magnitudes (`tan(abs(angle))`); pixel-to-camera reconstruction must explicitly project horizontal samples over `[-left, +right]`. By default, image rows are treated as top-to-bottom, so vertical samples project over `[+top, -down]`; `flipVerticalProjection=false` may be used only as a runtime diagnostic compatibility override when validating texture origin assumptions. The depth camera transform must mirror Meta SDK depth camera matrix construction by applying a `(1, 1, -1)` local scale to the `DepthFrameDesc` pose and by applying the optional tracking-space transform before writing Unity world-space coverage points.
 
 The visualizer must obtain depth textures through `DepthFrameProvider` and must not issue a second `AsyncGPUReadback` request for the raw depth frame stream. It may asynchronously read back the derived coarse coverage voxel buffers at a low rate when using the Particle System renderer, because those buffers are feedback-only visualization products and not depth persistence data.
 
@@ -156,7 +168,9 @@ When diagnostics reports a tracking discontinuity while live coverage is active,
 
 Coverage samples captured after the event should be stored under the new segment so that repeated observations of the same coarse voxel after a tracking discontinuity do not overwrite the previous segment's observations.
 
-The initial segmented coverage renderer may draw the current segment at full opacity and previous segments at reduced opacity.
+The initial segmented coverage renderer may draw the current segment at full opacity and previous segments at reduced opacity. Coverage points may be colored by sampled depth so near and far observations are distinguishable.
+
+When `showSampleFrustums` is enabled, live coverage may retain a low-rate world-space history of the depth camera frustum from the `DepthFrameDesc` used for each sampled coverage update. Frustum history represents past sampled depth acquisition poses, not the current HMD pose. The history should be rate-limited by `frustumSampleIntervalSeconds` and capped by `maxFrustumSamples` so it remains an operator aid rather than a dense trajectory overlay. The bundled default configuration keeps sample frustums disabled because they can visually obscure the depth coverage points during normal operation.
 
 Coverage segmentation is a visualization aid only. It must not stop recording, change output files, or modify persisted pose, depth, or camera data.
 
@@ -180,3 +194,8 @@ Editor debug sources must be exposed only through Unity Editor inspector fields 
 Editor debug source selection must not be part of the runtime recording JSON configuration and must not affect Quest runtime behavior.
 
 Editor debug coverage may bypass `DepthFrameProvider` and compute depth sampling, but it should use the same coverage point material, buffers, and draw path as runtime live coverage so that rendering and world-space placement can be tested independently.
+
+
+# Depth Pose Diagnostics
+
+Live coverage may provide an configuration-controlled depth pose diagnostic log for validating depth point placement. The diagnostic log must be disabled by default, must not add files to recording output, and should report the selected eye, depth timestamp, raw depth pose, transformed world origin, transformed world axes, FOV tangents, near/far planes, vertical projection flip setting, and tracking-space source at a low rate. This diagnostic is intended to distinguish depth pose conversion errors from rendering/material issues.

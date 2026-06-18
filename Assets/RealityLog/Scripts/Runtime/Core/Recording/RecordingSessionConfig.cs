@@ -96,6 +96,12 @@ namespace RealityLog.Recording
             public float minDepthMeters = 0.3f;
             public float maxDepthMeters = 5.0f;
             public string eye = "left";
+            public bool showSampleFrustums = false;
+            public float frustumSampleIntervalSeconds = 1.0f;
+            public int maxFrustumSamples = 24;
+            public bool logPoseDiagnostics = false;
+            public float poseDiagnosticIntervalSeconds = 1.0f;
+            public bool flipVerticalProjection = true;
         }
 
         [Serializable]

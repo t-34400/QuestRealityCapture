@@ -5,6 +5,7 @@ Texture2DArray<float> _DepthTexture;
 RWStructuredBuffer<int4> _VoxelKeys;
 RWStructuredBuffer<int> _VoxelOccupancy;
 RWStructuredBuffer<float4> _CoveragePoints;
+RWStructuredBuffer<float2> _CoverageMetadata;
 
 int _Width;
 int _Height;
@@ -22,6 +23,7 @@ float _FovDownTan;
 float _NearZ;
 float _FarZ;
 int _UseInfiniteFar;
+int _FlipVerticalProjection;
 float4x4 _DepthCameraToWorld;
 
 static const int kMaxProbeCount = 8;
@@ -42,7 +44,9 @@ float3 PixelToDepthCamera(float depthMeters, uint sourceX, uint sourceY)
     float u = ((float)sourceX + 0.5f) / max(1.0f, (float)_Width);
     float v = ((float)sourceY + 0.5f) / max(1.0f, (float)_Height);
     float xTan = lerp(-_FovLeftTan, _FovRightTan, u);
-    float yTan = lerp(-_FovDownTan, _FovTopTan, v);
+    float yTan = _FlipVerticalProjection != 0
+        ? lerp(_FovTopTan, -_FovDownTan, v)
+        : lerp(-_FovDownTan, _FovTopTan, v);
     return float3(xTan * depthMeters, yTan * depthMeters, -depthMeters);
 }
 
@@ -53,6 +57,7 @@ void ClearCoverage(uint3 id : SV_DispatchThreadID)
     _VoxelKeys[id.x] = int4(0, 0, 0, 0);
     _VoxelOccupancy[id.x] = kEmptyVoxel;
     _CoveragePoints[id.x] = float4(0.0f, 0.0f, 0.0f, -1.0f);
+    _CoverageMetadata[id.x] = float2(-1.0f, 0.0f);
 }
 
 [numthreads(8, 8, 1)]
@@ -102,12 +107,14 @@ void UpdateCoverage(uint3 id : SV_DispatchThreadID)
         {
             _VoxelKeys[slot] = int4(voxel, _SegmentId);
             _CoveragePoints[slot] = float4(((float3)voxel + 0.5f) * _VoxelSizeMeters, (float)_SegmentId);
+            _CoverageMetadata[slot] = float2((float)_SegmentId, depthMeters);
             return;
         }
 
         if (_VoxelOccupancy[slot] == kOccupiedVoxel && key.x == voxel.x && key.y == voxel.y && key.z == voxel.z && key.w == _SegmentId)
         {
             _CoveragePoints[slot] = float4(((float3)voxel + 0.5f) * _VoxelSizeMeters, (float)_SegmentId);
+            _CoverageMetadata[slot] = float2((float)_SegmentId, depthMeters);
             return;
         }
     }

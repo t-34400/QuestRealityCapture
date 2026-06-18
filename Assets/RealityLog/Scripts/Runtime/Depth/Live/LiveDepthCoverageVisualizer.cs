@@ -52,9 +52,12 @@ namespace RealityLog.Depth
         [SerializeField] private Material? coveragePointMaterial = null;
         [SerializeField] private Transform? trackingSpace = null;
         [SerializeField] private DepthCoverageRenderMode renderMode = DepthCoverageRenderMode.ParticleSystem;
-        [SerializeField, Min(0.001f)] private float pointSizeMeters = 0.03f;
+        [SerializeField, Min(0.001f)] private float pointSizeMeters = 0.015f;
         [SerializeField, Range(0.0f, 1.0f)] private float previousSegmentAlpha = 0.22f;
         [SerializeField, Min(0.05f)] private float particleRefreshIntervalSeconds = 0.25f;
+        [SerializeField, Min(0.001f)] private float frustumLineWidthMeters = 0.006f;
+        [SerializeField, Min(0.05f)] private float frustumDistanceMeters = 1.0f;
+        [SerializeField, Range(0.0f, 1.0f)] private float frustumAlpha = 0.28f;
 #if UNITY_EDITOR
         [Header("Editor Debug")]
         [SerializeField] private EditorCoverageSource editorCoverageSource = EditorCoverageSource.DepthProvider;
@@ -73,18 +76,28 @@ namespace RealityLog.Depth
             30000,
             0.3f,
             5.0f,
-            DepthCoverageEye.Left);
+            DepthCoverageEye.Left,
+            false,
+            1.0f,
+            24,
+            false,
+            1.0f,
+            true);
 
         private ComputeBuffer? voxelKeysBuffer;
         private ComputeBuffer? voxelOccupancyBuffer;
         private ComputeBuffer? coveragePointsBuffer;
+        private ComputeBuffer? coverageMetadataBuffer;
         private Material? runtimeCoverageMaterial;
         private DepthCoverageParticleRenderer? particleRenderer;
+        private DepthFrustumHistoryRenderer? frustumHistoryRenderer;
         private int updateKernel = InvalidKernel;
         private int clearKernel = InvalidKernel;
         private bool isVisualizing;
         private bool hasBegunDepthUsage;
         private float nextUpdateRealtime;
+        private float nextFrustumSampleRealtime;
+        private float nextDepthPoseDiagnosticRealtime;
         private int allocatedMaxVoxels;
         private int currentSegmentId;
 
@@ -121,7 +134,10 @@ namespace RealityLog.Depth
                 ClearCoverageBuffers();
                 PrepareRenderer();
                 nextUpdateRealtime = 0f;
+                nextFrustumSampleRealtime = 0f;
+                nextDepthPoseDiagnosticRealtime = 0f;
                 currentSegmentId = 0;
+                PrepareFrustumRenderer();
 
 #if UNITY_EDITOR
                 if (UsesEditorDebugSource)
@@ -156,6 +172,7 @@ namespace RealityLog.Depth
             }
 
             ClearParticles();
+            ClearFrustumHistory();
             ReleaseBuffers();
         }
 
@@ -193,6 +210,8 @@ namespace RealityLog.Depth
 
             particleRenderer?.Dispose();
             particleRenderer = null;
+            frustumHistoryRenderer?.Dispose();
+            frustumHistoryRenderer = null;
         }
 
         private void Update()
@@ -218,6 +237,7 @@ namespace RealityLog.Depth
             if (renderMode != DepthCoverageRenderMode.ProceduralBillboard
                 || !isVisualizing
                 || coveragePointsBuffer == null
+                || coverageMetadataBuffer == null
                 || voxelKeysBuffer == null
                 || voxelOccupancyBuffer == null)
             {
@@ -231,10 +251,13 @@ namespace RealityLog.Depth
             }
 
             material.SetBuffer("_CoveragePoints", coveragePointsBuffer);
+            material.SetBuffer("_CoverageMetadata", coverageMetadataBuffer);
             material.SetBuffer("_VoxelOccupancy", voxelOccupancyBuffer);
             material.SetFloat("_PointSizeMeters", pointSizeMeters);
             material.SetFloat("_CurrentSegmentId", currentSegmentId);
             material.SetFloat("_PreviousSegmentAlpha", previousSegmentAlpha);
+            material.SetFloat("_MinDepthMeters", settings.minDepthMeters);
+            material.SetFloat("_MaxDepthMeters", settings.maxDepthMeters);
             material.SetPass(0);
             Graphics.DrawProceduralNow(MeshTopology.Triangles, settings.maxVoxels * 6);
         }
@@ -242,7 +265,7 @@ namespace RealityLog.Depth
         private void DispatchCoverageUpdate()
         {
             if (depthFrameProvider == null || updateCoverageShader == null || updateKernel == InvalidKernel
-                || coveragePointsBuffer == null || voxelKeysBuffer == null || voxelOccupancyBuffer == null)
+                || coveragePointsBuffer == null || coverageMetadataBuffer == null || voxelKeysBuffer == null || voxelOccupancyBuffer == null)
             {
                 return;
             }
@@ -261,11 +284,14 @@ namespace RealityLog.Depth
             var eyeIndex = Mathf.Clamp((int)settings.eye, 0, FrameDescriptorCount - 1);
             var descriptor = frameDescriptors[eyeIndex];
             var cameraToWorld = CalculateDepthCameraToWorld(descriptor);
+            LogDepthPoseDiagnosticsIfNeeded(descriptor, cameraToWorld, eyeIndex);
+            AddFrustumSampleIfNeeded(descriptor, cameraToWorld);
 
             updateCoverageShader.SetTexture(updateKernel, "_DepthTexture", depthTexture);
             updateCoverageShader.SetBuffer(updateKernel, "_VoxelKeys", voxelKeysBuffer);
             updateCoverageShader.SetBuffer(updateKernel, "_VoxelOccupancy", voxelOccupancyBuffer);
             updateCoverageShader.SetBuffer(updateKernel, "_CoveragePoints", coveragePointsBuffer);
+            updateCoverageShader.SetBuffer(updateKernel, "_CoverageMetadata", coverageMetadataBuffer);
             updateCoverageShader.SetInt("_Width", depthTexture.width);
             updateCoverageShader.SetInt("_Height", depthTexture.height);
             updateCoverageShader.SetInt("_EyeIndex", eyeIndex);
@@ -282,6 +308,7 @@ namespace RealityLog.Depth
             updateCoverageShader.SetFloat("_NearZ", descriptor.nearZ);
             updateCoverageShader.SetFloat("_FarZ", descriptor.farZ);
             updateCoverageShader.SetInt("_UseInfiniteFar", ShouldUseInfiniteFar(descriptor.nearZ, descriptor.farZ) ? 1 : 0);
+            updateCoverageShader.SetInt("_FlipVerticalProjection", settings.flipVerticalProjection ? 1 : 0);
             updateCoverageShader.SetMatrix("_DepthCameraToWorld", cameraToWorld);
 
             var groupsX = Mathf.CeilToInt(depthTexture.width / (float)(KernelThreadGroupSize * settings.samplingStep));
@@ -289,6 +316,28 @@ namespace RealityLog.Depth
             updateCoverageShader.Dispatch(updateKernel, Mathf.Max(1, groupsX), Mathf.Max(1, groupsY), 1);
         }
 
+
+        private void LogDepthPoseDiagnosticsIfNeeded(DepthFrameDesc descriptor, Matrix4x4 cameraToWorld, int eyeIndex)
+        {
+            if (!settings.logPoseDiagnostics || Time.realtimeSinceStartup < nextDepthPoseDiagnosticRealtime)
+            {
+                return;
+            }
+
+            var origin = cameraToWorld.MultiplyPoint3x4(Vector3.zero);
+            var forward = cameraToWorld.MultiplyVector(Vector3.forward).normalized;
+            var right = cameraToWorld.MultiplyVector(Vector3.right).normalized;
+            var up = cameraToWorld.MultiplyVector(Vector3.up).normalized;
+            Debug.Log(
+                $"[{Constants.LOG_TAG}] Depth coverage pose diagnostic: eye={eyeIndex}, tsNs={descriptor.timestampNs}, "
+                + $"posePos={descriptor.createPoseLocation}, poseRot={descriptor.createPoseRotation}, "
+                + $"worldOrigin={origin}, worldForward={forward}, worldRight={right}, worldUp={up}, "
+                + $"fovTan=({descriptor.fovLeftAngleTangent:F4},{descriptor.fovRightAngleTangent:F4},{descriptor.fovTopAngleTangent:F4},{descriptor.fovDownAngleTangent:F4}), "
+                + $"nearFar=({descriptor.nearZ:F4},{descriptor.farZ:F4}), "
+                + $"flipVerticalProjection={settings.flipVerticalProjection}, "
+                + $"trackingSpace={(trackingSpace != null ? trackingSpace.name : "none")}");
+            nextDepthPoseDiagnosticRealtime = Time.realtimeSinceStartup + settings.poseDiagnosticIntervalSeconds;
+        }
 
         private Matrix4x4 CalculateDepthCameraToWorld(DepthFrameDesc descriptor)
         {
@@ -348,7 +397,7 @@ namespace RealityLog.Depth
 
         private void AllocateBuffers(int maxVoxels)
         {
-            if (voxelKeysBuffer != null && voxelOccupancyBuffer != null && coveragePointsBuffer != null && allocatedMaxVoxels == maxVoxels)
+            if (voxelKeysBuffer != null && voxelOccupancyBuffer != null && coveragePointsBuffer != null && coverageMetadataBuffer != null && allocatedMaxVoxels == maxVoxels)
             {
                 return;
             }
@@ -358,11 +407,12 @@ namespace RealityLog.Depth
             voxelKeysBuffer = new ComputeBuffer(maxVoxels, sizeof(int) * 4, ComputeBufferType.Structured);
             voxelOccupancyBuffer = new ComputeBuffer(maxVoxels, sizeof(int), ComputeBufferType.Structured);
             coveragePointsBuffer = new ComputeBuffer(maxVoxels, sizeof(float) * 4, ComputeBufferType.Structured);
+            coverageMetadataBuffer = new ComputeBuffer(maxVoxels, sizeof(float) * 2, ComputeBufferType.Structured);
         }
 
         private void ClearCoverageBuffers()
         {
-            if (updateCoverageShader == null || clearKernel == InvalidKernel || voxelKeysBuffer == null || voxelOccupancyBuffer == null || coveragePointsBuffer == null)
+            if (updateCoverageShader == null || clearKernel == InvalidKernel || voxelKeysBuffer == null || voxelOccupancyBuffer == null || coveragePointsBuffer == null || coverageMetadataBuffer == null)
             {
                 return;
             }
@@ -370,6 +420,7 @@ namespace RealityLog.Depth
             updateCoverageShader.SetBuffer(clearKernel, "_VoxelKeys", voxelKeysBuffer);
             updateCoverageShader.SetBuffer(clearKernel, "_VoxelOccupancy", voxelOccupancyBuffer);
             updateCoverageShader.SetBuffer(clearKernel, "_CoveragePoints", coveragePointsBuffer);
+            updateCoverageShader.SetBuffer(clearKernel, "_CoverageMetadata", coverageMetadataBuffer);
             updateCoverageShader.SetInt("_MaxVoxels", settings.maxVoxels);
             var groups = Mathf.CeilToInt(settings.maxVoxels / (float)ClearKernelThreadGroupSize);
             updateCoverageShader.Dispatch(clearKernel, Mathf.Max(1, groups), 1, 1);
@@ -383,6 +434,8 @@ namespace RealityLog.Depth
             voxelOccupancyBuffer = null;
             coveragePointsBuffer?.Release();
             coveragePointsBuffer = null;
+            coverageMetadataBuffer?.Release();
+            coverageMetadataBuffer = null;
             allocatedMaxVoxels = 0;
         }
 
@@ -409,7 +462,7 @@ namespace RealityLog.Depth
             }
 
             particleRenderer ??= new DepthCoverageParticleRenderer();
-            particleRenderer.Configure(transform, settings.maxVoxels, pointSizeMeters, previousSegmentAlpha);
+            particleRenderer.Configure(transform, settings.maxVoxels, pointSizeMeters, previousSegmentAlpha, settings.minDepthMeters, settings.maxDepthMeters);
             particleRenderer.Clear();
         }
 
@@ -418,6 +471,7 @@ namespace RealityLog.Depth
             if (renderMode != DepthCoverageRenderMode.ParticleSystem
                 || particleRenderer == null
                 || coveragePointsBuffer == null
+                || coverageMetadataBuffer == null
                 || voxelOccupancyBuffer == null)
             {
                 return;
@@ -425,6 +479,7 @@ namespace RealityLog.Depth
 
             particleRenderer.RefreshIfNeeded(
                 coveragePointsBuffer,
+                coverageMetadataBuffer,
                 voxelOccupancyBuffer,
                 currentSegmentId,
                 particleRefreshIntervalSeconds);
@@ -433,6 +488,41 @@ namespace RealityLog.Depth
         private void ClearParticles()
         {
             particleRenderer?.Stop();
+        }
+
+        private void PrepareFrustumRenderer()
+        {
+            if (!settings.showSampleFrustums || settings.maxFrustumSamples <= 0)
+            {
+                return;
+            }
+
+            frustumHistoryRenderer ??= new DepthFrustumHistoryRenderer();
+            frustumHistoryRenderer.Configure(transform, settings.maxFrustumSamples, frustumLineWidthMeters, frustumAlpha);
+            frustumHistoryRenderer.Clear();
+        }
+
+        private void AddFrustumSampleIfNeeded(DepthFrameDesc descriptor, Matrix4x4 cameraToWorld)
+        {
+            if (!settings.showSampleFrustums || settings.maxFrustumSamples <= 0)
+            {
+                return;
+            }
+
+            if (Time.realtimeSinceStartup < nextFrustumSampleRealtime)
+            {
+                return;
+            }
+
+            frustumHistoryRenderer ??= new DepthFrustumHistoryRenderer();
+            frustumHistoryRenderer.Configure(transform, settings.maxFrustumSamples, frustumLineWidthMeters, frustumAlpha);
+            frustumHistoryRenderer.AddSample(descriptor, cameraToWorld, frustumDistanceMeters, currentSegmentId);
+            nextFrustumSampleRealtime = Time.realtimeSinceStartup + settings.frustumSampleIntervalSeconds;
+        }
+
+        private void ClearFrustumHistory()
+        {
+            frustumHistoryRenderer?.Clear();
         }
 
         private Material? ResolveMaterial()
@@ -510,13 +600,14 @@ namespace RealityLog.Depth
 
         private void FillEditorDebugCoverage()
         {
-            if (coveragePointsBuffer == null || voxelKeysBuffer == null || voxelOccupancyBuffer == null)
+            if (coveragePointsBuffer == null || coverageMetadataBuffer == null || voxelKeysBuffer == null || voxelOccupancyBuffer == null)
             {
                 return;
             }
 
             var maxVoxels = settings.maxVoxels;
             var points = new Vector4[maxVoxels];
+            var metadata = new Vector2[maxVoxels];
             var occupancy = new int[maxVoxels];
             var keys = new EditorVoxelKey[maxVoxels];
             var count = editorCoverageSource switch
@@ -526,13 +617,15 @@ namespace RealityLog.Depth
                 _ => FillEditorDebugGrid(points, occupancy, keys),
             };
 
+            FillEditorMetadata(points, metadata, occupancy);
             voxelKeysBuffer.SetData(keys);
             voxelOccupancyBuffer.SetData(occupancy);
             coveragePointsBuffer.SetData(points);
+            coverageMetadataBuffer.SetData(metadata);
 
             if (renderMode == DepthCoverageRenderMode.ParticleSystem)
             {
-                particleRenderer?.ApplyImmediate(points, occupancy, currentSegmentId);
+                particleRenderer?.ApplyImmediate(points, metadata, occupancy, currentSegmentId);
             }
 
             Debug.Log($"[{Constants.LOG_TAG}] Editor debug coverage generated {count} points from {editorCoverageSource}.");
@@ -618,6 +711,21 @@ namespace RealityLog.Depth
             }
 
             return count;
+        }
+
+        private void FillEditorMetadata(Vector4[] points, Vector2[] metadata, int[] occupancy)
+        {
+            for (var i = 0; i < points.Length && i < metadata.Length && i < occupancy.Length; i++)
+            {
+                if (occupancy[i] == 0)
+                {
+                    continue;
+                }
+
+                var point = new Vector3(points[i].x, points[i].y, points[i].z);
+                var depth = Vector3.Distance(transform.position, point);
+                metadata[i] = new Vector2(currentSegmentId, Mathf.Clamp(depth, settings.minDepthMeters, settings.maxDepthMeters));
+            }
         }
 
 #endif

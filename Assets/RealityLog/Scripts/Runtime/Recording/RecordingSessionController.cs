@@ -206,7 +206,13 @@ namespace RealityLog.Recording
                 config.maxVoxels,
                 config.minDepthMeters,
                 config.maxDepthMeters,
-                DepthCoverageSettings.ParseEye(config.eye));
+                DepthCoverageSettings.ParseEye(config.eye),
+                config.showSampleFrustums,
+                config.frustumSampleIntervalSeconds,
+                config.maxFrustumSamples,
+                config.logPoseDiagnostics,
+                config.poseDiagnosticIntervalSeconds,
+                config.flipVerticalProjection);
         }
 
         private void ConfigurePoseLoggers(RecordingSessionConfig.PoseConfig config, RecordingSessionPaths.PosePaths paths)

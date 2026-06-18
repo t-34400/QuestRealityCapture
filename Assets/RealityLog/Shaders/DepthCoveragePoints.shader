@@ -20,10 +20,13 @@ Shader "RealityLog/DepthCoveragePoints"
             #include "UnityCG.cginc"
 
             StructuredBuffer<float4> _CoveragePoints;
+            StructuredBuffer<float2> _CoverageMetadata;
             StructuredBuffer<int> _VoxelOccupancy;
             float _PointSizeMeters;
             float _CurrentSegmentId;
             float _PreviousSegmentAlpha;
+            float _MinDepthMeters;
+            float _MaxDepthMeters;
             float4 _PointColor;
 
             struct appdata
@@ -34,7 +37,7 @@ Shader "RealityLog/DepthCoveragePoints"
             struct v2f
             {
                 float4 pos : SV_POSITION;
-                float alpha : TEXCOORD0;
+                float4 color : COLOR;
             };
 
             v2f vert(appdata v)
@@ -51,22 +54,25 @@ Shader "RealityLog/DepthCoveragePoints"
 
                 int occupied = _VoxelOccupancy[pointIndex];
                 float4 coveragePoint = _CoveragePoints[pointIndex];
+                float2 metadata = _CoverageMetadata[pointIndex];
                 float3 cameraRight = normalize(float3(unity_CameraToWorld[0][0], unity_CameraToWorld[1][0], unity_CameraToWorld[2][0]));
                 float3 cameraUp = normalize(float3(unity_CameraToWorld[0][1], unity_CameraToWorld[1][1], unity_CameraToWorld[2][1]));
                 corner *= _PointSizeMeters;
                 float3 world = coveragePoint.xyz + cameraRight * corner.x + cameraUp * corner.y;
 
                 o.pos = UnityWorldToClipPos(world);
-                float segmentAlpha = abs(coveragePoint.w - _CurrentSegmentId) < 0.5 ? 1.0 : _PreviousSegmentAlpha;
-                o.alpha = occupied == 1 ? segmentAlpha : 0.0;
+                float normalizedDepth = saturate((metadata.y - _MinDepthMeters) / max(0.001, _MaxDepthMeters - _MinDepthMeters));
+                float3 nearColor = float3(1.0, 0.36, 0.08);
+                float3 farColor = float3(0.12, 0.58, 1.0);
+                float segmentAlpha = abs(metadata.x - _CurrentSegmentId) < 0.5 ? 1.0 : _PreviousSegmentAlpha;
+                float distanceAlpha = lerp(0.95, 0.45, normalizedDepth);
+                o.color = float4(lerp(nearColor, farColor, normalizedDepth), occupied == 1 ? segmentAlpha * distanceAlpha : 0.0);
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
-                fixed4 color = _PointColor;
-                color.a *= i.alpha;
-                return color;
+                return i.color;
             }
             ENDCG
         }
