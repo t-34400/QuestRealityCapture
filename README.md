@@ -76,6 +76,7 @@ Example structure:
     ├── hmd_poses.csv
     ├── left_controller_poses.csv
     ├── right_controller_poses.csv
+    ├── stereo_pairs.csv              # present when native stereo mode is enabled
     │
     ├── left_camera_raw/
     │   ├── <unixtimeMs>.yuv
@@ -126,6 +127,11 @@ Example structure:
 ### Passthrough Camera (Raw YUV)
 - Raw YUV frames are stored as `.yuv` files under `left_camera_raw/` and `right_camera_raw/`.
 - Image format and buffer information are provided in the accompanying `*_camera_image_format.json` files.
+- When native stereo mode is enabled, left/right frames are matched by native image timestamp before saving. The session root includes `stereo_pairs.csv` with:
+
+  ```text
+  pair_index,left_timestamp_ns,right_timestamp_ns,delta_ns,left_unix_ms,right_unix_ms,left_file,right_file
+  ```
 
 To convert passthrough YUV (YUV_420_888) images to RGB for visualization or reconstruction, see: [Meta Quest 3D Reconstruction](https://github.com/t-34400/metaquest-3d-reconstrucion)
 
@@ -190,6 +196,9 @@ Example configuration:
     "targetSaveFps": 10,
     "preferOpenByCameraId": true,
     "allowJavaMetadataFallback": false,
+    "stereoMode": false,
+    "stereoMaxTimeDeltaSeconds": 0.02,
+    "stereoPairFileName": "stereo_pairs.csv",
     "left": {
       "enabled": true,
       "imageDirectoryName": "left_camera_raw",
@@ -248,7 +257,13 @@ Example configuration:
 }
 ```
 
-`targetSaveFps` controls the save rate. It does not force the underlying camera, depth, or tracking system update rate. A value of `0` saves every eligible update.
+`targetSaveFps` controls the save rate. It does not force the underlying camera, depth, or tracking system update rate. A value of `0` saves every eligible update. In native stereo mode, `camera.targetSaveFps` is applied after timestamp pairing, so it limits saved stereo pairs rather than each camera stream independently.
+
+Native stereo camera settings:
+
+* `camera.stereoMode`: when `true`, the Unity session routes left/right camera capture through the native stereo recorder.
+* `camera.stereoMaxTimeDeltaSeconds`: maximum allowed timestamp difference for a saved stereo pair.
+* `camera.stereoPairFileName`: session-root CSV that maps saved left/right `.yuv` files to native timestamps.
 
 Example deployment:
 

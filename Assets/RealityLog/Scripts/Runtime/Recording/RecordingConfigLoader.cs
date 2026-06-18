@@ -84,6 +84,14 @@ namespace RealityLog.Recording
 
             config.camera ??= new RecordingSessionConfig.CameraConfig();
             config.camera.targetSaveFps = NormalizeFps(config.camera.targetSaveFps, "camera.targetSaveFps");
+            config.camera.stereoMaxTimeDeltaSeconds = NormalizePositiveFloat(
+                config.camera.stereoMaxTimeDeltaSeconds,
+                0.02f,
+                "camera.stereoMaxTimeDeltaSeconds");
+            config.camera.stereoPairFileName = NormalizeText(
+                config.camera.stereoPairFileName,
+                "stereo_pairs.csv",
+                "camera.stereoPairFileName");
             config.camera.left = NormalizeCameraSide(
                 config.camera.left,
                 RecordingSessionConfig.CameraSideConfig.LeftDefaults(),

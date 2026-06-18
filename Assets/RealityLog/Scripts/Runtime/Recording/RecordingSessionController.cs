@@ -13,6 +13,7 @@ namespace RealityLog.Recording
         [SerializeField] private TextAsset? configJson = null;
         [SerializeField] private string externalConfigPath = RecordingConfigLoader.DefaultExternalConfigPath;
         [SerializeField] private NativeCameraRecorder[] cameraRecorders = new NativeCameraRecorder[0];
+        [SerializeField] private NativeStereoCameraRecorder? stereoCameraRecorder = null;
         [SerializeField] private DepthMapExporter? depthExporter = null;
         [SerializeField] private LiveDepthCoverageVisualizer? liveDepthCoverageVisualizer = null;
         [SerializeField] private RecordingDiagnosticsController? recordingDiagnostics = null;
@@ -24,6 +25,7 @@ namespace RealityLog.Recording
 
         private readonly RecordingSessionPathProvider pathProvider = new();
         private readonly List<NativeCameraRecorder> startedCameraRecorders = new();
+        private NativeStereoCameraRecorder? startedStereoCameraRecorder;
         private readonly List<PoseLogger> startedPoseLoggers = new();
         private RecordingSessionConfig? activeConfig;
         private RecordingSessionPaths? activePaths;
@@ -130,16 +132,29 @@ namespace RealityLog.Recording
 
         private bool ValidateConfiguredModules(RecordingSessionConfig config)
         {
-            if (config.camera.enabled && config.camera.left.enabled && !HasEnabledCameraRecorder(CameraPosition.Left))
-            {
-                Debug.LogError($"[{Constants.LOG_TAG}] Recording session left camera is enabled, but no left native camera recorder is assigned.");
-                return false;
-            }
+            EnsureStereoCameraRecorderReference(config);
 
-            if (config.camera.enabled && config.camera.right.enabled && !HasEnabledCameraRecorder(CameraPosition.Right))
+            if (RequiresStereoCameraRecorder(config))
             {
-                Debug.LogError($"[{Constants.LOG_TAG}] Recording session right camera is enabled, but no right native camera recorder is assigned.");
-                return false;
+                if (stereoCameraRecorder == null)
+                {
+                    Debug.LogError($"[{Constants.LOG_TAG}] Recording session stereoMode is enabled, but no native stereo camera recorder is assigned.");
+                    return false;
+                }
+            }
+            else
+            {
+                if (config.camera.enabled && config.camera.left.enabled && !HasEnabledCameraRecorder(CameraPosition.Left))
+                {
+                    Debug.LogError($"[{Constants.LOG_TAG}] Recording session left camera is enabled, but no left native camera recorder is assigned.");
+                    return false;
+                }
+
+                if (config.camera.enabled && config.camera.right.enabled && !HasEnabledCameraRecorder(CameraPosition.Right))
+                {
+                    Debug.LogError($"[{Constants.LOG_TAG}] Recording session right camera is enabled, but no right native camera recorder is assigned.");
+                    return false;
+                }
             }
 
             if (config.depth.enabled && depthExporter == null)
@@ -155,6 +170,36 @@ namespace RealityLog.Recording
             }
 
             return true;
+        }
+
+
+        private bool RequiresStereoCameraRecorder(RecordingSessionConfig config)
+        {
+            return config.camera.enabled
+                && config.camera.stereoMode
+                && config.camera.left.enabled
+                && config.camera.right.enabled;
+        }
+
+        private bool ShouldUseStereoCameraRecorder(RecordingSessionConfig config)
+        {
+            return stereoCameraRecorder != null && RequiresStereoCameraRecorder(config);
+        }
+
+        private void EnsureStereoCameraRecorderReference(RecordingSessionConfig config)
+        {
+            if (!RequiresStereoCameraRecorder(config) || stereoCameraRecorder != null)
+            {
+                return;
+            }
+
+            stereoCameraRecorder = GetComponentInChildren<NativeStereoCameraRecorder>(includeInactive: true)
+                ?? FindAnyObjectByType<NativeStereoCameraRecorder>(FindObjectsInactive.Include);
+
+            if (stereoCameraRecorder != null)
+            {
+                Debug.Log($"[{Constants.LOG_TAG}] Recording session found native stereo camera recorder automatically: {stereoCameraRecorder.name}");
+            }
         }
 
         private bool HasEnabledCameraRecorder(CameraPosition position)
@@ -185,9 +230,16 @@ namespace RealityLog.Recording
 
         private void ConfigureModules(RecordingSessionConfig config, RecordingSessionPaths paths)
         {
-            foreach (var recorder in cameraRecorders)
+            if (ShouldUseStereoCameraRecorder(config))
             {
-                recorder?.ApplyConfiguration(config, paths);
+                stereoCameraRecorder?.ApplyConfiguration(config, paths);
+            }
+            else
+            {
+                foreach (var recorder in cameraRecorders)
+                {
+                    recorder?.ApplyConfiguration(config, paths);
+                }
             }
 
             depthExporter?.ApplyConfiguration(config.depth, paths.Depth);
@@ -257,6 +309,12 @@ namespace RealityLog.Recording
             if (!config.camera.enabled)
             {
                 return true;
+            }
+
+            if (ShouldUseStereoCameraRecorder(config))
+            {
+                startedStereoCameraRecorder = stereoCameraRecorder;
+                return startedStereoCameraRecorder == null || startedStereoCameraRecorder.StartRecording();
             }
 
             startedCameraRecorders.Clear();
@@ -396,6 +454,17 @@ namespace RealityLog.Recording
             {
                 depthExporter.StopExport();
                 depthStarted = false;
+            }
+
+            if (startedStereoCameraRecorder != null)
+            {
+                success &= startedStereoCameraRecorder.StopRecording();
+                if (closeCamerasOnStop)
+                {
+                    success &= startedStereoCameraRecorder.Close();
+                }
+
+                startedStereoCameraRecorder = null;
             }
 
             for (var i = startedCameraRecorders.Count - 1; i >= 0; --i)

@@ -117,7 +117,9 @@ close cameras when configured
 
 If any enabled recording module fails to start, the session controller must stop already-started modules and close any camera recorder whose native lifecycle may have been partially opened.
 
-When camera recording is enabled, each enabled camera side in the active configuration must have a matching native camera recorder assigned before the session starts.
+When camera recording is enabled in non-stereo mode, each enabled camera side in the active configuration must have a matching native camera recorder assigned before the session starts.
+
+When `camera.stereoMode` is enabled with both camera sides enabled, the session controller must start a native stereo camera recorder instead of the independent left/right recorders. If no stereo recorder is assigned or discoverable, startup must fail with a clear error rather than silently falling back to independent recording.
 
 Depth and pose modules must report start success or failure to the session controller so that session startup does not silently continue after output initialization fails.
 
@@ -157,6 +159,9 @@ camera.enabled = true
 camera.targetSaveFps = 10
 camera.preferOpenByCameraId = true
 camera.allowJavaMetadataFallback = false
+camera.stereoMode = false
+camera.stereoMaxTimeDeltaSeconds = 0.02
+camera.stereoPairFileName = stereo_pairs.csv
 camera.left.enabled = true
 camera.left.imageDirectoryName = left_camera_raw
 camera.left.metadataFileName = left_camera_characteristics.json
@@ -217,6 +222,9 @@ Supported configuration fields include:
     "targetSaveFps": 10,
     "preferOpenByCameraId": true,
     "allowJavaMetadataFallback": false,
+    "stereoMode": false,
+    "stereoMaxTimeDeltaSeconds": 0.02,
+    "stereoPairFileName": "stereo_pairs.csv",
     "left": {
       "enabled": true,
       "imageDirectoryName": "left_camera_raw",
@@ -278,7 +286,7 @@ Supported configuration fields include:
 
 Live feedback configuration is defined in `live_recording_feedback.md`. The recording session configuration owns deserialization and defaulting of the `liveFeedback` block, but live feedback remains optional and must not change the recording output layout.
 
-`targetSaveFps` values should be interpreted as save-rate throttles. They should not imply that the underlying camera, depth, or tracking systems must change their capture/update rate.
+`targetSaveFps` values should be interpreted as save-rate throttles. They should not imply that the underlying camera, depth, or tracking systems must change their capture/update rate. In native stereo mode, `camera.targetSaveFps` is applied after timestamp pairing and limits saved stereo pairs.
 
 A `targetSaveFps` value of zero means that every eligible update may be saved.
 
@@ -293,3 +301,25 @@ Recording session orchestration may start optional live coverage feedback after 
 Live coverage feedback is not a persistence module. Failure to start live coverage must not fail the recording session, and live coverage must not change session directory creation or recorded file layouts.
 
 On stop, live coverage feedback should be stopped before depth export so shared depth provider usage is released before the depth exporter is stopped.
+
+---
+
+# Native Stereo Camera Session Configuration
+
+Recording configuration may enable native stereo camera recording with:
+
+```json
+{
+  "camera": {
+    "stereoMode": true,
+    "stereoMaxTimeDeltaSeconds": 0.02,
+    "stereoPairFileName": "stereo_pairs.csv"
+  }
+}
+```
+
+When `camera.stereoMode` is true and both left and right camera sides are enabled, Unity routes camera recording through a single native stereo recorder component instead of two independent native camera recorder components.
+
+`camera.targetSaveFps` applies to saved stereo pairs in stereo mode. `camera.stereoMaxTimeDeltaSeconds` defines the maximum allowed native timestamp difference between paired left and right frames. `camera.stereoPairFileName` names the CSV written at the session root that associates left and right `.yuv` files.
+
+When stereo mode is false, existing independent left/right native camera recorder behavior is preserved. The packaged default configuration keeps stereo mode disabled so existing workflows remain unchanged unless the user enables stereo mode in JSON.

@@ -18,6 +18,9 @@ namespace RealityLog.Recording
         {
             public bool enabled = true;
             public int targetSaveFps = 10;
+            public bool stereoMode = false;
+            public float stereoMaxTimeDeltaSeconds = 0.02f;
+            public string stereoPairFileName = "stereo_pairs.csv";
             public bool preferOpenByCameraId = true;
             public bool allowJavaMetadataFallback = false;
             public CameraSideConfig left = CameraSideConfig.LeftDefaults();

@@ -193,3 +193,29 @@ The native plugin is built as an Android shared library for Meta Quest / Unity A
 The initial migration may keep the native implementation in a small number of files while compatibility is being validated.
 
 Split the native implementation when responsibilities become difficult to navigate.
+
+---
+
+# Native Stereo Recording Mode
+
+The native plugin may expose a stereo session API in addition to the existing single-camera session API.
+
+The stereo API must keep the single-camera API behavior unchanged. Existing `QrcCamera_*` exported functions remain the compatibility path for independent left/right camera recorders.
+
+The stereo API owns both the left and right native camera devices in one session and must match frames by native image timestamp before persisting them. A stereo frame pair is eligible for saving only when the absolute timestamp difference is less than or equal to the configured maximum delta.
+
+Stereo sessions must preserve raw YUV persistence rules from `yuv_storage_format.md` for each saved left and right frame. Stereo mode must not convert, repack, reorder, or crop image planes.
+
+The stereo API should write a pair index file named by Unity integration, conventionally:
+
+```text
+stereo_pairs.csv
+```
+
+The CSV must include enough information to associate saved left/right `.yuv` files with their native timestamps and timestamp delta. The expected columns are:
+
+```text
+pair_index,left_timestamp_ns,right_timestamp_ns,delta_ns,left_unix_ms,right_unix_ms,left_file,right_file
+```
+
+Stereo target save FPS is applied to accepted pairs, not independently to each camera stream.

@@ -168,6 +168,7 @@ MonoBehaviour:
   cameraRecorders:
   - {fileID: 950167288}
   - {fileID: 1276772011}
+  stereoCameraRecorder: {fileID: 1457542678}
   depthExporter: {fileID: 338253293}
   liveDepthCoverageVisualizer: {fileID: 338253294}
   recordingDiagnostics: {fileID: 0}
@@ -1727,6 +1728,7 @@ GameObject:
   - component: {fileID: 1457542675}
   - component: {fileID: 1457542676}
   - component: {fileID: 1457542677}
+  - component: {fileID: 1457542678}
   m_Layer: 0
   m_Name: PassthroughCamera
   m_TagString: Untagged
@@ -1806,6 +1808,32 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 1
         m_CallState: 2
+--- !u!114 &1457542678
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1457542673}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a36d3d50474446fbb4f29d067425cea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RealityLog::RealityLog.Camera.NativeStereoCameraRecorder
+  cameraPermissionManager: {fileID: 1457542675}
+  cameraMetadataProvider: {fileID: 1457542676}
+  allowJavaMetadataFallback: 0
+  dataDirectoryName: 
+  leftImageSubdirName: left_camera_raw
+  rightImageSubdirName: right_camera_raw
+  leftCameraMetaDataFileName: left_camera_characteristics.json
+  rightCameraMetaDataFileName: right_camera_characteristics.json
+  leftFormatInfoFileName: left_camera_image_format.json
+  rightFormatInfoFileName: right_camera_image_format.json
+  pairCsvFileName: stereo_pairs.csv
+  targetSaveFps: 0
+  preferOpenByCameraId: 1
+  maxTimeDeltaSeconds: 0.02
 --- !u!1 &1963279078
 GameObject:
   m_ObjectHideFlags: 0

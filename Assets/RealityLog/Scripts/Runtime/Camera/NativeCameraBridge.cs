@@ -35,6 +35,21 @@ namespace RealityLog.Camera
         public long lastSavedTimestampNs;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct NativeStereoCameraStats
+    {
+        public long leftReceivedFrameCount;
+        public long rightReceivedFrameCount;
+        public long savedPairCount;
+        public long droppedFrameCount;
+        public long ioErrorCount;
+        public long lastLeftImageTimestampNs;
+        public long lastRightImageTimestampNs;
+        public long lastSavedLeftTimestampNs;
+        public long lastSavedRightTimestampNs;
+        public long lastSavedDeltaNs;
+    }
+
     public static class NativeCameraBridge
     {
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -86,6 +101,54 @@ namespace RealityLog.Camera
 
         [DllImport(LibraryName)]
         private static extern IntPtr QrcCamera_GetCameraMetadataJson(NativeCameraPosition position);
+
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcStereoCamera_CreateSession(out IntPtr handle);
+
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcStereoCamera_DestroySession(IntPtr handle);
+
+        [DllImport(LibraryName, CharSet = CharSet.Ansi)]
+        private static extern NativeCameraResult QrcStereoCamera_InitializeSession(
+            IntPtr handle,
+            int width,
+            int height,
+            string leftFrameDirectory,
+            string rightFrameDirectory,
+            string leftFormatInfoFilePath,
+            string rightFormatInfoFilePath,
+            string pairCsvFilePath,
+            long maxTimeDeltaNs);
+
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcStereoCamera_SetSessionSaveFrameRate(IntPtr handle, int fps);
+
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcStereoCamera_OpenSession(IntPtr handle);
+
+        [DllImport(LibraryName, CharSet = CharSet.Ansi)]
+        private static extern NativeCameraResult QrcStereoCamera_OpenSessionByIds(IntPtr handle, string leftCameraId, string rightCameraId);
+
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcStereoCamera_StartSessionRecording(IntPtr handle);
+
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcStereoCamera_StopSessionRecording(IntPtr handle);
+
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcStereoCamera_CloseSession(IntPtr handle);
+
+        [DllImport(LibraryName)]
+        private static extern NativeCameraResult QrcStereoCamera_GetSessionStats(IntPtr handle, out NativeStereoCameraStats stats);
+
+        [DllImport(LibraryName)]
+        private static extern IntPtr QrcStereoCamera_GetSessionLastError(IntPtr handle);
+
+        [DllImport(LibraryName)]
+        private static extern IntPtr QrcStereoCamera_GetSessionLastOpenedLeftCameraId(IntPtr handle);
+
+        [DllImport(LibraryName)]
+        private static extern IntPtr QrcStereoCamera_GetSessionLastOpenedRightCameraId(IntPtr handle);
 #endif
 
         public static NativeCameraResult CreateSession(out IntPtr handle)
@@ -216,6 +279,143 @@ namespace RealityLog.Camera
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
             return PtrToString(QrcCamera_GetCameraMetadataJson(position));
+#else
+            return string.Empty;
+#endif
+        }
+
+        public static NativeCameraResult CreateStereoSession(out IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_CreateSession(out handle);
+#else
+            handle = IntPtr.Zero;
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult DestroyStereoSession(IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_DestroySession(handle);
+#else
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult InitializeStereoSession(
+            IntPtr handle,
+            int width,
+            int height,
+            string leftFrameDirectory,
+            string rightFrameDirectory,
+            string leftFormatInfoFilePath,
+            string rightFormatInfoFilePath,
+            string pairCsvFilePath,
+            long maxTimeDeltaNs)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_InitializeSession(
+                handle,
+                width,
+                height,
+                leftFrameDirectory,
+                rightFrameDirectory,
+                leftFormatInfoFilePath,
+                rightFormatInfoFilePath,
+                pairCsvFilePath,
+                maxTimeDeltaNs);
+#else
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult SetStereoSessionSaveFrameRate(IntPtr handle, int fps)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_SetSessionSaveFrameRate(handle, fps);
+#else
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult OpenStereoSession(IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_OpenSession(handle);
+#else
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult OpenStereoSessionByIds(IntPtr handle, string leftCameraId, string rightCameraId)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_OpenSessionByIds(handle, leftCameraId, rightCameraId);
+#else
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult StartStereoSessionRecording(IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_StartSessionRecording(handle);
+#else
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult StopStereoSessionRecording(IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_StopSessionRecording(handle);
+#else
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult CloseStereoSession(IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_CloseSession(handle);
+#else
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static NativeCameraResult GetStereoSessionStats(IntPtr handle, out NativeStereoCameraStats stats)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return QrcStereoCamera_GetSessionStats(handle, out stats);
+#else
+            stats = default;
+            return NativeCameraResult.NotSupported;
+#endif
+        }
+
+        public static string GetStereoSessionLastError(IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return PtrToString(QrcStereoCamera_GetSessionLastError(handle));
+#else
+            return "Native stereo camera plugin is available only on Android devices.";
+#endif
+        }
+
+        public static string GetStereoSessionLastOpenedLeftCameraId(IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return PtrToString(QrcStereoCamera_GetSessionLastOpenedLeftCameraId(handle));
+#else
+            return string.Empty;
+#endif
+        }
+
+        public static string GetStereoSessionLastOpenedRightCameraId(IntPtr handle)
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            return PtrToString(QrcStereoCamera_GetSessionLastOpenedRightCameraId(handle));
 #else
             return string.Empty;
 #endif
