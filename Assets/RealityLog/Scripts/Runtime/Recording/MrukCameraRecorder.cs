@@ -10,11 +10,13 @@ using UnityEngine;
 
 namespace RealityLog.Recording
 {
+    [DefaultExecutionOrder(-50)]
     public class MrukCameraRecorder : MonoBehaviour
     {
         [SerializeField] private PassthroughCameraAccess? leftCameraAccess = null;
         [SerializeField] private PassthroughCameraAccess? rightCameraAccess = null;
         [SerializeField] private bool autoDiscoverCameraAccess = true;
+        [SerializeField] private bool disableCameraAccessOnStop = true;
         [SerializeField, Min(0)] private int maxFramesPerCamera = 0;
 
         private RecordingSessionConfig? config;
@@ -56,6 +58,9 @@ namespace RealityLog.Recording
                 return false;
             }
 
+            PrepareCameraAccess(leftState);
+            PrepareCameraAccess(rightState);
+
             Directory.CreateDirectory(paths.RootDirectoryPath);
             leftFrameWriter = leftState.Enabled
                 ? CreateCsv(paths.LeftMrukCamera.FrameMetadataFilePath, FrameMetadataHeader)
@@ -87,6 +92,12 @@ namespace RealityLog.Recording
             }
 
             recording = false;
+            if (disableCameraAccessOnStop)
+            {
+                DisableCameraAccess(leftState);
+                DisableCameraAccess(rightState);
+            }
+
             leftFrameWriter?.Dispose();
             leftFrameWriter = null;
             rightFrameWriter?.Dispose();
@@ -158,12 +169,24 @@ namespace RealityLog.Recording
 
             var access = state.Access;
             var isUpdatedThisFrame = access.IsUpdatedThisFrame;
-            if (!isUpdatedThisFrame)
+            if (!access.IsPlaying)
             {
+                state.LogSkipOncePerSecond($"{state.CameraName} MRUK camera is not playing yet.");
                 return false;
             }
 
             var timestampUs = ToUnixMicroseconds(access.Timestamp);
+            if (timestampUs <= 0L)
+            {
+                state.LogSkipOncePerSecond($"{state.CameraName} MRUK camera timestamp is not available yet.");
+                return false;
+            }
+
+            if (timestampUs <= state.LastTimestampUs)
+            {
+                return false;
+            }
+
             var timestampMs = timestampUs / 1000L;
             var currentResolution = access.CurrentResolution;
             var width = currentResolution.x;
@@ -325,6 +348,34 @@ namespace RealityLog.Recording
             return true;
         }
 
+        private static void PrepareCameraAccess(CameraRecordingState state)
+        {
+            if (!state.Enabled || state.Access == null)
+            {
+                return;
+            }
+
+            if (!state.Access.gameObject.activeSelf)
+            {
+                state.Access.gameObject.SetActive(true);
+            }
+
+            if (!state.Access.enabled)
+            {
+                state.Access.enabled = true;
+            }
+        }
+
+        private static void DisableCameraAccess(CameraRecordingState state)
+        {
+            if (!state.Enabled || state.Access == null)
+            {
+                return;
+            }
+
+            state.Access.enabled = false;
+        }
+
         private static PassthroughCameraAccess? FindCameraAccess(PassthroughCameraAccess.CameraPositionType position)
         {
             foreach (var access in FindObjectsByType<PassthroughCameraAccess>(FindObjectsInactive.Include))
@@ -427,6 +478,18 @@ namespace RealityLog.Recording
             public int LastFrameIndex { get; set; }
             public long LastTimestampUs { get; set; }
             public string LastFileName { get; set; } = string.Empty;
+            private float nextSkipLogRealtime;
+
+            public void LogSkipOncePerSecond(string message)
+            {
+                if (Time.realtimeSinceStartup < nextSkipLogRealtime)
+                {
+                    return;
+                }
+
+                nextSkipLogRealtime = Time.realtimeSinceStartup + 1f;
+                Debug.LogWarning($"[{Constants.LOG_TAG}] {message}");
+            }
 
             public void ResetRuntimeState()
             {
@@ -434,6 +497,7 @@ namespace RealityLog.Recording
                 LastFrameIndex = 0;
                 LastTimestampUs = 0L;
                 LastFileName = string.Empty;
+                nextSkipLogRealtime = 0f;
             }
         }
 

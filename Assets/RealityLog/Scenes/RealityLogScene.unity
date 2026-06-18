@@ -2440,6 +2440,7 @@ MonoBehaviour:
   leftCameraAccess: {fileID: 1206335137}
   rightCameraAccess: {fileID: 537298348}
   autoDiscoverCameraAccess: 1
+  disableCameraAccessOnStop: 1
   maxFramesPerCamera: 0
 --- !u!1 &2119440226
 GameObject:
