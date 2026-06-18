@@ -170,7 +170,6 @@ MonoBehaviour:
   - {fileID: 1276772011}
   depthExporter: {fileID: 338253293}
   liveDepthCoverageVisualizer: {fileID: 338253294}
-  recordingDiagnostics: {fileID: 0}
   poseLogger: {fileID: 0}
   poseLoggers:
   - {fileID: 708566676}
@@ -478,7 +477,6 @@ MonoBehaviour:
   leftDepthDescFileName: left_depth_descriptors.csv
   rightDepthDescFileName: right_depth_descriptors.csv
   targetSaveFps: 0
-  depthFrameProvider: {fileID: 0}
 --- !u!114 &338253294
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -496,13 +494,6 @@ MonoBehaviour:
   coveragePointShader: {fileID: 4800000, guid: 0b1856a464765232bed2409446de1b7c, type: 3}
   coveragePointMaterial: {fileID: 0}
   pointSizeMeters: 0.03
-  previousSegmentAlpha: 0.22
-  editorCoverageSource: 0
-  startEditorDebugOnPlay: 0
-  editorDebugGridResolution: 11
-  editorDebugGridSizeMeters: 2
-  editorDebugGridDistanceMeters: 2
-  editorDebugAxisLengthMeters: 1
 --- !u!1 &353022599
 GameObject:
   m_ObjectHideFlags: 0

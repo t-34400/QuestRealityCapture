@@ -24,7 +24,7 @@ Live feedback must not change the default recording output layout.
 
 Live feedback must not change recorded file names, CSV columns, raw depth byte layout, or YUV byte layout.
 
-Live feedback must be optional and must be disabled by default unless a user configuration explicitly enables it.
+Live feedback must be optional and is enabled in the bundled default recording configuration so operators see coverage and diagnostics without creating an external override. A user configuration may explicitly disable it.
 
 When live feedback is disabled, runtime components must avoid allocating feedback-only buffers, dispatching feedback-only compute work, or drawing feedback-only overlays.
 
@@ -87,7 +87,7 @@ Supported fields include:
 ```json
 {
   "liveFeedback": {
-    "enabled": false,
+    "enabled": true,
     "coverage": {
       "enabled": true,
       "targetUpdateFps": 3,
@@ -110,7 +110,7 @@ Supported fields include:
 }
 ```
 
-Older configuration JSON files that omit `liveFeedback` must continue to load and must behave as if live feedback is disabled.
+Older external configuration JSON files that omit `liveFeedback` must continue to load and must behave as if live feedback is disabled. The bundled default JSON may explicitly set `liveFeedback.enabled` to true.
 
 
 ---
@@ -123,7 +123,7 @@ When `liveFeedback.enabled` and `liveFeedback.coverage.enabled` are both true, `
 
 Live coverage startup failure must be logged as a warning and must not fail or stop the recording session.
 
-The initial implementation samples one configured depth eye, defaults to the left eye, updates at the configured low rate, converts raw depth buffer samples to linear meter depth using the corresponding `DepthFrameDesc.nearZ` and `DepthFrameDesc.farZ`, converts those depths into Quest world-space points using the corresponding `DepthFrameDesc` pose and FOV tangents, inserts those points into a fixed-size GPU hash voxel map, and draws occupied voxels as camera-facing points. Infinite or invalid far clipping values must use the infinite-far conversion branch.
+The initial implementation samples one configured depth eye, defaults to the left eye, updates at the configured low rate, converts raw depth buffer samples to linear meter depth using the corresponding `DepthFrameDesc.nearZ` and `DepthFrameDesc.farZ`, converts those depths into Quest world-space points using the corresponding `DepthFrameDesc` pose and signed FOV tangents, inserts those points into a fixed-size GPU hash voxel map, and draws occupied voxels as camera-facing points. Infinite or invalid far clipping values must use the infinite-far conversion branch. Pixel-to-camera projection must preserve OpenXR FOV tangent signs and must treat camera/view forward depth as local negative Z before applying the `DepthFrameDesc` camera-to-world pose.
 
 The visualizer must obtain depth textures through `DepthFrameProvider` and must not issue `AsyncGPUReadback` requests.
 

@@ -67,9 +67,9 @@ float3 PixelToCamera(float depthMeters, uint sourceX, uint sourceY)
 {
     float u = ((float)sourceX + 0.5f) / max(1.0f, (float)_Width);
     float v = ((float)sourceY + 0.5f) / max(1.0f, (float)_Height);
-    float xTan = lerp(-_FovLeftTan, _FovRightTan, u);
-    float yTan = lerp(-_FovDownTan, _FovTopTan, v);
-    return float3(xTan * depthMeters, yTan * depthMeters, depthMeters);
+    float xTan = lerp(_FovLeftTan, _FovRightTan, u);
+    float yTan = lerp(_FovDownTan, _FovTopTan, v);
+    return float3(xTan * depthMeters, yTan * depthMeters, -depthMeters);
 }
 
 [numthreads(64, 1, 1)]

@@ -292,6 +292,7 @@ namespace RealityLog.Recording
         {
             if (!config.liveFeedback.enabled || !config.liveFeedback.coverage.enabled)
             {
+                Debug.Log($"[{Constants.LOG_TAG}] Live depth coverage disabled by config. liveFeedback={config.liveFeedback.enabled}, coverage={config.liveFeedback.coverage.enabled}");
                 return;
             }
 
@@ -308,6 +309,7 @@ namespace RealityLog.Recording
             }
 
             liveCoverageStarted = true;
+            Debug.Log($"[{Constants.LOG_TAG}] Live depth coverage started.");
         }
 
 
@@ -315,6 +317,7 @@ namespace RealityLog.Recording
         {
             if (!config.liveFeedback.enabled || !config.liveFeedback.diagnostics.enabled)
             {
+                Debug.Log($"[{Constants.LOG_TAG}] Recording diagnostics disabled by config. liveFeedback={config.liveFeedback.enabled}, diagnostics={config.liveFeedback.diagnostics.enabled}");
                 return;
             }
 
@@ -332,6 +335,7 @@ namespace RealityLog.Recording
             }
 
             diagnosticsStarted = true;
+            Debug.Log($"[{Constants.LOG_TAG}] Recording diagnostics started.");
         }
 
         private bool StartPoseLogger(RecordingSessionConfig config)
