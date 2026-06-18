@@ -119,6 +119,8 @@ When camera recording is enabled, each enabled camera side in the active configu
 
 Depth and pose modules must report start success or failure to the session controller so that session startup does not silently continue after output initialization fails.
 
+Depth frame acquisition should be isolated from depth persistence so that recording diagnostics or live feedback can share the current GPU depth texture without adding another GPU-to-CPU readback path. A depth exporter may depend on a scene-facing depth frame provider, but the exporter remains the owner of raw depth file output and descriptor CSV output.
+
 The session controller should expose a simple scene-facing method:
 
 ```text

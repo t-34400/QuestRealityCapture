@@ -4,7 +4,6 @@ using System;
 using System.IO;
 using RealityLog.Recording;
 using UnityEngine;
-using UnityEngine.Android;
 
 namespace RealityLog.Depth
 {
@@ -34,7 +33,7 @@ namespace RealityLog.Depth
         private string? leftDepthDescriptorFilePath;
         private string? rightDepthDescriptorFilePath;
 
-        private DepthDataExtractor? depthDataExtractor;
+        [SerializeField] private DepthFrameProvider? depthFrameProvider = null;
 
         private DepthRenderTextureExporter? renderTextureExporter;
         private CsvWriter? leftDepthCsvWriter;
@@ -44,7 +43,6 @@ namespace RealityLog.Depth
         private long baseUnixTimeMs;
 
         private bool isExporting = false;
-        private bool hasScenePermission = false;
 
         public string DirectoryName
         {
@@ -85,11 +83,9 @@ namespace RealityLog.Depth
                 leftDepthCsvWriter = new(paths.leftDescriptorFilePath, descriptorHeader);
                 rightDepthCsvWriter = new(paths.rightDescriptorFilePath, descriptorHeader);
 
+                EnsureDepthFrameProvider();
                 isExporting = true;
-                if (hasScenePermission)
-                {
-                    depthDataExtractor?.SetDepthEnabled(true);
-                }
+                depthFrameProvider?.BeginDepthUsage();
 
                 return true;
             }
@@ -110,18 +106,16 @@ namespace RealityLog.Depth
             rightDepthCsvWriter?.Dispose();
             rightDepthCsvWriter = null;
 
-            depthDataExtractor?.SetDepthEnabled(false);
+            depthFrameProvider?.EndDepthUsage();
         }
 
-        private void Start()
+        private void Awake()
         {
             baseOvrTimeSec = OVRPlugin.GetTimeInSeconds();
             baseUnixTimeMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-            depthDataExtractor = new();
+            EnsureDepthFrameProvider();
             renderTextureExporter = new(copyDepthMapShader);
-
-            Permission.RequestUserPermission(OVRPermissionsRequester.ScenePermission);
 
             Application.onBeforeRender += OnBeforeRender;
         }
@@ -139,27 +133,13 @@ namespace RealityLog.Depth
         private void OnBeforeRender()
         {
             if (!isExporting ||
-                renderTextureExporter == null || depthDataExtractor == null
+                renderTextureExporter == null || depthFrameProvider == null
                 || leftDepthCsvWriter == null || rightDepthCsvWriter == null)
             {
                 return;
             }
 
-            if (!hasScenePermission)
-            {
-                hasScenePermission = Permission.HasUserAuthorizedPermission(OVRPermissionsRequester.ScenePermission);
-
-                if (hasScenePermission)
-                {
-                    depthDataExtractor.SetDepthEnabled(isExporting);
-                }
-                else
-                {
-                    return;
-                }
-            }
-
-            if (depthDataExtractor.TryGetUpdatedDepthTexture(out var renderTexture, out var frameDescriptors))
+            if (depthFrameProvider.TryGetLatestFrame(out var renderTexture, out var frameDescriptors))
             {
                 const int FRAME_DESC_COUNT = 2;
 
@@ -265,6 +245,20 @@ namespace RealityLog.Depth
         {
             var deltaMs = (long) (timestampNs / 1.0e6 - baseOvrTimeSec * 1000.0);
             return baseUnixTimeMs + deltaMs;
+        }
+
+        private void EnsureDepthFrameProvider()
+        {
+            if (depthFrameProvider != null)
+            {
+                return;
+            }
+
+            depthFrameProvider = GetComponent<DepthFrameProvider>();
+            if (depthFrameProvider == null)
+            {
+                depthFrameProvider = gameObject.AddComponent<DepthFrameProvider>();
+            }
         }
 
 #if UNITY_EDITOR
