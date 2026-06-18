@@ -145,3 +145,17 @@ The initial discontinuity detector may use pose deltas rather than device-native
 
 Diagnostics overlays must not add new recording output files and must not change existing camera, depth, or pose persistence formats.
 
+
+---
+
+# Coverage Segmentation
+
+Live coverage may be segmented by diagnostics tracking events.
+
+When diagnostics reports a tracking discontinuity while live coverage is active, coverage visualization should advance to the event segment identifier.
+
+Coverage samples captured after the event should be stored under the new segment so that repeated observations of the same coarse voxel after a tracking discontinuity do not overwrite the previous segment's observations.
+
+The initial segmented coverage renderer may draw the current segment at full opacity and previous segments at reduced opacity.
+
+Coverage segmentation is a visualization aid only. It must not stop recording, change output files, or modify persisted pose, depth, or camera data.

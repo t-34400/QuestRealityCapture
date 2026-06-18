@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using RealityLog.Recording;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -19,6 +18,7 @@ namespace RealityLog.Depth
         [SerializeField] private Shader? coveragePointShader = null;
         [SerializeField] private Material? coveragePointMaterial = null;
         [SerializeField, Min(0.001f)] private float pointSizeMeters = 0.03f;
+        [SerializeField, Range(0.0f, 1.0f)] private float previousSegmentAlpha = 0.22f;
 
         private DepthCoverageSettings settings = new(
             false,
@@ -40,12 +40,14 @@ namespace RealityLog.Depth
         private bool hasBegunDepthUsage;
         private float nextUpdateRealtime;
         private int allocatedMaxVoxels;
+        private int currentSegmentId;
 
         public bool IsVisualizing => isVisualizing;
+        public int CurrentSegmentId => currentSegmentId;
 
-        public void ApplyConfiguration(RecordingSessionConfig.LiveFeedbackConfig config)
+        public void ApplyConfiguration(DepthCoverageSettings coverageSettings)
         {
-            settings = DepthCoverageSettings.FromConfig(config.coverage);
+            settings = coverageSettings;
         }
 
         public bool TryStartVisualization()
@@ -69,6 +71,7 @@ namespace RealityLog.Depth
                 depthFrameProvider!.BeginDepthUsage();
                 hasBegunDepthUsage = true;
                 nextUpdateRealtime = 0f;
+                currentSegmentId = 0;
                 isVisualizing = true;
                 return true;
             }
@@ -91,6 +94,12 @@ namespace RealityLog.Depth
             }
 
             ReleaseBuffers();
+        }
+
+
+        public void SetSegmentId(int segmentId)
+        {
+            currentSegmentId = Mathf.Max(0, segmentId);
         }
 
         private void Awake()
@@ -137,6 +146,8 @@ namespace RealityLog.Depth
             material.SetBuffer("_CoveragePoints", coveragePointsBuffer);
             material.SetBuffer("_VoxelOccupancy", voxelOccupancyBuffer);
             material.SetFloat("_PointSizeMeters", pointSizeMeters);
+            material.SetFloat("_CurrentSegmentId", currentSegmentId);
+            material.SetFloat("_PreviousSegmentAlpha", previousSegmentAlpha);
             material.SetPass(0);
             Graphics.DrawProceduralNow(MeshTopology.Triangles, settings.maxVoxels * 6);
         }
@@ -173,6 +184,7 @@ namespace RealityLog.Depth
             updateCoverageShader.SetInt("_EyeIndex", eyeIndex);
             updateCoverageShader.SetInt("_SamplingStep", settings.samplingStep);
             updateCoverageShader.SetInt("_MaxVoxels", settings.maxVoxels);
+            updateCoverageShader.SetInt("_SegmentId", currentSegmentId);
             updateCoverageShader.SetFloat("_VoxelSizeMeters", settings.voxelSizeMeters);
             updateCoverageShader.SetFloat("_MinDepthMeters", settings.minDepthMeters);
             updateCoverageShader.SetFloat("_MaxDepthMeters", settings.maxDepthMeters);

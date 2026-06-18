@@ -1,5 +1,6 @@
 #nullable enable
 
+using RealityLog.Depth;
 using UnityEngine;
 
 namespace RealityLog.Recording
@@ -12,12 +13,14 @@ namespace RealityLog.Recording
 
         private TrackingQualityMonitor? monitor;
         private TrajectoryVisualizer? trajectory;
+        private LiveDepthCoverageVisualizer? coverage;
         private bool isVisible;
 
-        public void Bind(TrackingQualityMonitor trackingMonitor, TrajectoryVisualizer? trajectoryVisualizer)
+        public void Bind(TrackingQualityMonitor trackingMonitor, TrajectoryVisualizer? trajectoryVisualizer, LiveDepthCoverageVisualizer? coverageVisualizer)
         {
             monitor = trackingMonitor;
             trajectory = trajectoryVisualizer;
+            coverage = coverageVisualizer;
         }
 
         public void StartHud()
@@ -55,10 +58,14 @@ namespace RealityLog.Recording
             var trajectoryText = trajectory != null && trajectory.IsVisualizing
                 ? trajectory.PointCount.ToString()
                 : "off";
+            var coverageText = coverage != null && coverage.IsVisualizing
+                ? $"segment {coverage.CurrentSegmentId}"
+                : $"segment {monitor.SegmentId}";
 
             textMesh.text =
                 "REC\n" +
                 $"Tracking: {monitor.CurrentState}\n" +
+                $"Coverage: {coverageText}\n" +
                 $"Events: {eventText}\n" +
                 $"Trajectory points: {trajectoryText}";
         }

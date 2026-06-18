@@ -11,6 +11,7 @@ int _Height;
 int _EyeIndex;
 int _SamplingStep;
 int _MaxVoxels;
+int _SegmentId;
 float _VoxelSizeMeters;
 float _MinDepthMeters;
 float _MaxDepthMeters;
@@ -24,12 +25,13 @@ static const int kMaxProbeCount = 8;
 static const int kEmptyVoxel = 0;
 static const int kOccupiedVoxel = 1;
 
-uint HashVoxel(int3 voxel)
+uint HashVoxel(int3 voxel, int segmentId)
 {
     uint x = (uint)voxel.x * 73856093u;
     uint y = (uint)voxel.y * 19349663u;
     uint z = (uint)voxel.z * 83492791u;
-    return x ^ y ^ z;
+    uint s = (uint)segmentId * 2654435761u;
+    return x ^ y ^ z ^ s;
 }
 
 float3 PixelToCamera(float depthMeters, uint sourceX, uint sourceY)
@@ -47,7 +49,7 @@ void ClearCoverage(uint3 id : SV_DispatchThreadID)
     if (id.x >= (uint)_MaxVoxels) return;
     _VoxelKeys[id.x] = int4(0, 0, 0, 0);
     _VoxelOccupancy[id.x] = kEmptyVoxel;
-    _CoveragePoints[id.x] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    _CoveragePoints[id.x] = float4(0.0f, 0.0f, 0.0f, -1.0f);
 }
 
 [numthreads(8, 8, 1)]
@@ -64,7 +66,7 @@ void UpdateCoverage(uint3 id : SV_DispatchThreadID)
     float3 cameraPoint = PixelToCamera(depthMeters, sourceX, sourceY);
     float3 worldPoint = mul(_DepthCameraToWorld, float4(cameraPoint, 1.0f)).xyz;
     int3 voxel = (int3)floor(worldPoint / _VoxelSizeMeters);
-    uint baseSlot = HashVoxel(voxel) % (uint)_MaxVoxels;
+    uint baseSlot = HashVoxel(voxel, _SegmentId) % (uint)_MaxVoxels;
 
     [unroll]
     for (int probe = 0; probe < kMaxProbeCount; ++probe)
@@ -76,14 +78,14 @@ void UpdateCoverage(uint3 id : SV_DispatchThreadID)
         int4 key = _VoxelKeys[slot];
         if (previous == kEmptyVoxel)
         {
-            _VoxelKeys[slot] = int4(voxel, 0);
-            _CoveragePoints[slot] = float4(((float3)voxel + 0.5f) * _VoxelSizeMeters, 1.0f);
+            _VoxelKeys[slot] = int4(voxel, _SegmentId);
+            _CoveragePoints[slot] = float4(((float3)voxel + 0.5f) * _VoxelSizeMeters, (float)_SegmentId);
             return;
         }
 
-        if (_VoxelOccupancy[slot] == kOccupiedVoxel && key.x == voxel.x && key.y == voxel.y && key.z == voxel.z)
+        if (_VoxelOccupancy[slot] == kOccupiedVoxel && key.x == voxel.x && key.y == voxel.y && key.z == voxel.z && key.w == _SegmentId)
         {
-            _CoveragePoints[slot] = float4(((float3)voxel + 0.5f) * _VoxelSizeMeters, 1.0f);
+            _CoveragePoints[slot] = float4(((float3)voxel + 0.5f) * _VoxelSizeMeters, (float)_SegmentId);
             return;
         }
     }

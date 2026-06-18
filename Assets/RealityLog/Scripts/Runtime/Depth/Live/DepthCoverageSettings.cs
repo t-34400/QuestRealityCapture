@@ -1,6 +1,5 @@
 #nullable enable
 
-using RealityLog.Recording;
 using UnityEngine;
 
 namespace RealityLog.Depth
@@ -44,20 +43,7 @@ namespace RealityLog.Depth
 
         public float UpdateIntervalSeconds => 1.0f / targetUpdateFps;
 
-        public static DepthCoverageSettings FromConfig(RecordingSessionConfig.CoverageConfig config)
-        {
-            return new DepthCoverageSettings(
-                config.enabled,
-                config.targetUpdateFps,
-                config.samplingStep,
-                config.voxelSizeMeters,
-                config.maxVoxels,
-                config.minDepthMeters,
-                config.maxDepthMeters,
-                ParseEye(config.eye));
-        }
-
-        private static DepthCoverageEye ParseEye(string? value)
+        public static DepthCoverageEye ParseEye(string? value)
         {
             return value != null && value.ToLowerInvariant() == "right"
                 ? DepthCoverageEye.Right

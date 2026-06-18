@@ -22,6 +22,8 @@ Shader "RealityLog/DepthCoveragePoints"
             StructuredBuffer<float4> _CoveragePoints;
             StructuredBuffer<int> _VoxelOccupancy;
             float _PointSizeMeters;
+            float _CurrentSegmentId;
+            float _PreviousSegmentAlpha;
             float4 _PointColor;
 
             struct appdata
@@ -48,14 +50,15 @@ Shader "RealityLog/DepthCoveragePoints"
                 else if (cornerIndex == 5u) corner = float2(-1.0, 1.0);
 
                 int occupied = _VoxelOccupancy[pointIndex];
-                float4 point = _CoveragePoints[pointIndex];
+                float4 coveragePoint = _CoveragePoints[pointIndex];
                 float3 cameraRight = normalize(float3(unity_CameraToWorld[0][0], unity_CameraToWorld[1][0], unity_CameraToWorld[2][0]));
                 float3 cameraUp = normalize(float3(unity_CameraToWorld[0][1], unity_CameraToWorld[1][1], unity_CameraToWorld[2][1]));
                 corner *= _PointSizeMeters;
-                float3 world = point.xyz + cameraRight * corner.x + cameraUp * corner.y;
+                float3 world = coveragePoint.xyz + cameraRight * corner.x + cameraUp * corner.y;
 
                 o.pos = UnityWorldToClipPos(world);
-                o.alpha = occupied == 1 ? point.w : 0.0;
+                float segmentAlpha = abs(coveragePoint.w - _CurrentSegmentId) < 0.5 ? 1.0 : _PreviousSegmentAlpha;
+                o.alpha = occupied == 1 ? segmentAlpha : 0.0;
                 return o;
             }
 

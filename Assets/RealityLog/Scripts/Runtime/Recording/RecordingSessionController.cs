@@ -191,11 +191,23 @@ namespace RealityLog.Recording
             }
 
             depthExporter?.ApplyConfiguration(config.depth, paths.Depth);
-            liveDepthCoverageVisualizer?.ApplyConfiguration(config.liveFeedback);
+            liveDepthCoverageVisualizer?.ApplyConfiguration(CreateDepthCoverageSettings(config.liveFeedback.coverage));
             recordingDiagnostics?.ApplyConfiguration(config.liveFeedback);
             ConfigurePoseLoggers(config.pose, paths.Pose);
         }
 
+        private static DepthCoverageSettings CreateDepthCoverageSettings(RecordingSessionConfig.CoverageConfig config)
+        {
+            return new DepthCoverageSettings(
+                config.enabled,
+                config.targetUpdateFps,
+                config.samplingStep,
+                config.voxelSizeMeters,
+                config.maxVoxels,
+                config.minDepthMeters,
+                config.maxDepthMeters,
+                DepthCoverageSettings.ParseEye(config.eye));
+        }
 
         private void ConfigurePoseLoggers(RecordingSessionConfig.PoseConfig config, RecordingSessionPaths.PosePaths paths)
         {
@@ -312,7 +324,8 @@ namespace RealityLog.Recording
             }
 
             recordingDiagnostics.ApplyConfiguration(config.liveFeedback);
-            if (!recordingDiagnostics.TryStartDiagnostics())
+            var coverageForDiagnostics = liveCoverageStarted ? liveDepthCoverageVisualizer : null;
+            if (!recordingDiagnostics.TryStartDiagnostics(coverageForDiagnostics))
             {
                 Debug.LogWarning($"[{Constants.LOG_TAG}] Recording diagnostics failed to start. Recording will continue without diagnostics overlays.");
                 return;

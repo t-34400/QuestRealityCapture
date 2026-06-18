@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using RealityLog.Depth;
 using UnityEngine;
 
 namespace RealityLog.Recording
@@ -14,8 +15,12 @@ namespace RealityLog.Recording
 
         private RecordingDiagnosticsSettings settings = new(false, true, true, true, 0.3f, 30.0f);
         private bool isRunning;
+        private LiveDepthCoverageVisualizer? boundCoverageVisualizer;
+
+        public event Action<TrackingQualityEvent>? TrackingEventRaised;
 
         public bool IsRunning => isRunning;
+        public int CurrentSegmentId => trackingMonitor != null ? trackingMonitor.SegmentId : 0;
 
         public void ApplyConfiguration(RecordingSessionConfig.LiveFeedbackConfig config)
         {
@@ -23,7 +28,7 @@ namespace RealityLog.Recording
             trackingMonitor?.ApplyConfiguration(settings);
         }
 
-        public bool TryStartDiagnostics()
+        public bool TryStartDiagnostics(LiveDepthCoverageVisualizer? coverageVisualizer = null)
         {
             StopDiagnostics();
 
@@ -36,6 +41,12 @@ namespace RealityLog.Recording
             {
                 EnsureComponents();
                 trackingMonitor!.ApplyConfiguration(settings);
+                trackingMonitor.TrackingEventRaised += OnTrackingEventRaised;
+                if (coverageVisualizer != null)
+                {
+                    coverageVisualizer.SetSegmentId(0);
+                    boundCoverageVisualizer = coverageVisualizer;
+                }
 
                 if (settings.showTrajectory)
                 {
@@ -51,7 +62,7 @@ namespace RealityLog.Recording
 
                 if (settings.showHud)
                 {
-                    diagnosticsHud!.Bind(trackingMonitor, settings.showTrajectory ? trajectoryVisualizer : null);
+                    diagnosticsHud!.Bind(trackingMonitor, settings.showTrajectory ? trajectoryVisualizer : null, coverageVisualizer);
                     diagnosticsHud.StartHud();
                 }
 
@@ -76,6 +87,9 @@ namespace RealityLog.Recording
         {
             if (trackingMonitor != null)
             {
+                trackingMonitor.TrackingEventRaised -= OnTrackingEventRaised;
+                boundCoverageVisualizer = null;
+
                 if (trajectoryVisualizer != null)
                 {
                     trackingMonitor.PoseSampled -= trajectoryVisualizer.OnPoseSampled;
@@ -93,6 +107,13 @@ namespace RealityLog.Recording
             eventMarkerRenderer?.StopRendering();
             trajectoryVisualizer?.StopVisualization();
             isRunning = false;
+        }
+
+
+        private void OnTrackingEventRaised(TrackingQualityEvent trackingEvent)
+        {
+            boundCoverageVisualizer?.SetSegmentId(trackingEvent.segmentId);
+            TrackingEventRaised?.Invoke(trackingEvent);
         }
 
         private void EnsureComponents()
