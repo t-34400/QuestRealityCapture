@@ -34,7 +34,7 @@
     "rightControllerFileName": "right_controller_poses.csv"
   },
   "liveFeedback": {
-    "enabled": false,
+    "enabled": true,
     "coverage": {
       "enabled": true,
       "targetUpdateFps": 3,
