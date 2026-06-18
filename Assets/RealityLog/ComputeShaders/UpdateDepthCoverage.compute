@@ -107,7 +107,8 @@ void UpdateCoverage(uint3 id : SV_DispatchThreadID)
         {
             _VoxelKeys[slot] = int4(voxel, _SegmentId);
             _CoveragePoints[slot] = float4(((float3)voxel + 0.5f) * _VoxelSizeMeters, (float)_SegmentId);
-            _CoverageMetadata[slot] = float2((float)_SegmentId, depthMeters);
+            float storedDepth = _CoverageMetadata[slot].y;
+            _CoverageMetadata[slot] = float2((float)_SegmentId, min(storedDepth, depthMeters));
             return;
         }
 

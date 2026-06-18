@@ -52,7 +52,7 @@ namespace RealityLog.Depth
         [SerializeField] private Material? coveragePointMaterial = null;
         [SerializeField] private Transform? trackingSpace = null;
         [SerializeField] private DepthCoverageRenderMode renderMode = DepthCoverageRenderMode.ParticleSystem;
-        [SerializeField, Min(0.001f)] private float pointSizeMeters = 0.015f;
+        [SerializeField, Min(0.001f)] private float pointSizeMeters = 0.01f;
         [SerializeField, Range(0.0f, 1.0f)] private float previousSegmentAlpha = 0.22f;
         [SerializeField, Min(0.05f)] private float particleRefreshIntervalSeconds = 0.25f;
         [SerializeField, Min(0.001f)] private float frustumLineWidthMeters = 0.006f;

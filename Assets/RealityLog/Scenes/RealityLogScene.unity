@@ -497,7 +497,7 @@ MonoBehaviour:
   coveragePointMaterial: {fileID: 0}
   trackingSpace: {fileID: 0}
   renderMode: 0
-  pointSizeMeters: 0.03
+  pointSizeMeters: 0.01
   previousSegmentAlpha: 0.22
   particleRefreshIntervalSeconds: 0.25
   editorCoverageSource: 0
