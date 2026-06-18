@@ -293,3 +293,25 @@ Recording session orchestration may start optional live coverage feedback after 
 Live coverage feedback is not a persistence module. Failure to start live coverage must not fail the recording session, and live coverage must not change session directory creation or recorded file layouts.
 
 On stop, live coverage feedback should be stopped before depth export so shared depth provider usage is released before the depth exporter is stopped.
+
+---
+
+# Native Stereo Camera Session Configuration
+
+Recording configuration may enable native stereo camera recording with:
+
+```json
+{
+  "camera": {
+    "stereoMode": true,
+    "stereoMaxTimeDeltaSeconds": 0.02,
+    "stereoPairFileName": "stereo_pairs.csv"
+  }
+}
+```
+
+When `camera.stereoMode` is true and both left and right camera sides are enabled, Unity may route camera recording through a single native stereo recorder component instead of two independent native camera recorder components.
+
+`camera.targetSaveFps` applies to saved stereo pairs in stereo mode. `camera.stereoMaxTimeDeltaSeconds` defines the maximum allowed native timestamp difference between paired left and right frames. `camera.stereoPairFileName` names the CSV written at the session root that associates left and right `.yuv` files.
+
+When stereo mode is false, existing independent left/right native camera recorder behavior is preserved.

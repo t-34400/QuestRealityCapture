@@ -146,3 +146,13 @@ Changes affecting YUV persistence must validate that:
 * metadata reflects the written frame structure
 
 Prefer targeted validation over broad test execution.
+
+---
+
+# Stereo Pair Persistence
+
+When native stereo recording is enabled, each saved left or right frame remains an ordinary raw `.yuv` frame using the same byte layout as single-camera recording.
+
+Stereo matching must not change the byte layout of either frame. Pairing metadata belongs in a separate CSV file rather than inside `.yuv` frame files.
+
+Stereo frame filenames may continue to use each side's computed Unix timestamp in milliseconds. Consumers that require strict pair association should use the stereo pair CSV rather than inferring pairs from file order alone.

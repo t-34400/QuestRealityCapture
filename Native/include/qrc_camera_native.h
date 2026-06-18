@@ -54,6 +54,45 @@ const char* QrcCamera_GetSessionLastOpenedCameraId(QrcCameraSessionHandle handle
 const char* QrcCamera_GetCameraIdListJson(void);
 const char* QrcCamera_GetCameraMetadataJson(QrcCameraPosition position);
 
+
+typedef void* QrcStereoCameraSessionHandle;
+
+typedef struct QrcStereoCameraStats {
+    int64_t leftReceivedFrameCount;
+    int64_t rightReceivedFrameCount;
+    int64_t savedPairCount;
+    int64_t droppedFrameCount;
+    int64_t ioErrorCount;
+    int64_t lastLeftImageTimestampNs;
+    int64_t lastRightImageTimestampNs;
+    int64_t lastSavedLeftTimestampNs;
+    int64_t lastSavedRightTimestampNs;
+    int64_t lastSavedDeltaNs;
+} QrcStereoCameraStats;
+
+QrcCameraResult QrcStereoCamera_CreateSession(QrcStereoCameraSessionHandle* outHandle);
+QrcCameraResult QrcStereoCamera_DestroySession(QrcStereoCameraSessionHandle handle);
+QrcCameraResult QrcStereoCamera_InitializeSession(
+    QrcStereoCameraSessionHandle handle,
+    int width,
+    int height,
+    const char* leftFrameDirectory,
+    const char* rightFrameDirectory,
+    const char* leftFormatInfoFilePath,
+    const char* rightFormatInfoFilePath,
+    const char* pairCsvFilePath,
+    int64_t maxTimeDeltaNs);
+QrcCameraResult QrcStereoCamera_SetSessionSaveFrameRate(QrcStereoCameraSessionHandle handle, int fps);
+QrcCameraResult QrcStereoCamera_OpenSession(QrcStereoCameraSessionHandle handle);
+QrcCameraResult QrcStereoCamera_OpenSessionByIds(QrcStereoCameraSessionHandle handle, const char* leftCameraId, const char* rightCameraId);
+QrcCameraResult QrcStereoCamera_StartSessionRecording(QrcStereoCameraSessionHandle handle);
+QrcCameraResult QrcStereoCamera_StopSessionRecording(QrcStereoCameraSessionHandle handle);
+QrcCameraResult QrcStereoCamera_CloseSession(QrcStereoCameraSessionHandle handle);
+QrcCameraResult QrcStereoCamera_GetSessionStats(QrcStereoCameraSessionHandle handle, QrcStereoCameraStats* outStats);
+const char* QrcStereoCamera_GetSessionLastError(QrcStereoCameraSessionHandle handle);
+const char* QrcStereoCamera_GetSessionLastOpenedLeftCameraId(QrcStereoCameraSessionHandle handle);
+const char* QrcStereoCamera_GetSessionLastOpenedRightCameraId(QrcStereoCameraSessionHandle handle);
+
 #ifdef __cplusplus
 }
 #endif

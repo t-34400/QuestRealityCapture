@@ -4,6 +4,7 @@ project(qrc_camera_native LANGUAGES C CXX)
 
 add_library(qrc_camera_native SHARED
     src/qrc_camera_native.cpp
+    src/qrc_stereo_camera_native.cpp
 )
 
 target_include_directories(qrc_camera_native PUBLIC
