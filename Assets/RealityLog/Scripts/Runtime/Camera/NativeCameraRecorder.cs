@@ -228,7 +228,7 @@ namespace RealityLog.Camera
         {
             if (cameraPermissionManager == null)
             {
-                cameraPermissionManager = FindObjectOfType<CameraPermissionManager>();
+                cameraPermissionManager = FindAnyObjectByType<CameraPermissionManager>();
             }
 
             if (cameraPermissionManager == null)
