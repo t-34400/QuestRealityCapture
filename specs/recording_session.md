@@ -185,6 +185,12 @@ liveFeedback.coverage.maxVoxels = 30000
 liveFeedback.coverage.minDepthMeters = 0.3
 liveFeedback.coverage.maxDepthMeters = 5.0
 liveFeedback.coverage.eye = left
+liveFeedback.coverage.showSampleFrustums = false
+liveFeedback.coverage.frustumSampleIntervalSeconds = 1.0
+liveFeedback.coverage.maxFrustumSamples = 24
+liveFeedback.coverage.logPoseDiagnostics = false
+liveFeedback.coverage.poseDiagnosticIntervalSeconds = 1.0
+liveFeedback.coverage.flipVerticalProjection = true
 liveFeedback.diagnostics.enabled = true
 liveFeedback.diagnostics.showHud = false
 liveFeedback.diagnostics.showTrajectory = true
@@ -240,7 +246,7 @@ Supported configuration fields include:
     "rightControllerFileName": "right_controller_poses.csv"
   },
   "liveFeedback": {
-    "enabled": false,
+    "enabled": true,
     "coverage": {
       "enabled": true,
       "targetUpdateFps": 3,
@@ -249,7 +255,13 @@ Supported configuration fields include:
       "maxVoxels": 30000,
       "minDepthMeters": 0.3,
       "maxDepthMeters": 5.0,
-      "eye": "left"
+      "eye": "left",
+      "showSampleFrustums": false,
+      "frustumSampleIntervalSeconds": 1.0,
+      "maxFrustumSamples": 24,
+      "logPoseDiagnostics": false,
+      "poseDiagnosticIntervalSeconds": 1.0,
+      "flipVerticalProjection": true
     },
     "diagnostics": {
       "enabled": true,

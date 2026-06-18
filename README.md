@@ -30,6 +30,8 @@ This includes:
 * Captures **YUV passthrough images** from **both left and right cameras**
 * Logs **Camera2 API characteristics** and image format information
 * Saves **depth maps** and **depth descriptors** from both cameras
+* Provides optional live recording feedback for depth coverage and diagnostics
+* Supports JSON-based runtime configuration for camera, depth, pose, and live feedback settings
 * Automatically organizes logs into timestamped folders on internal storage
 
 ---
@@ -144,6 +146,20 @@ To convert passthrough YUV (YUV_420_888) images to RGB for visualization or reco
 To convert raw depth maps into linear or 3D form, refer to the companion project: [Meta Quest 3D Reconstruction](https://github.com/t-34400/metaquest-3d-reconstrucion)
 
 ---
+### Live Feedback
+
+Live feedback can display recording aids inside the headset while recording is active. It is intended for operator feedback only and does not change camera, depth, pose, or metadata output files.
+
+Available live feedback features include:
+
+* Depth coverage visualization
+* Recording trajectory visualization
+* Tracking discontinuity markers
+* Optional operator HUD diagnostics
+
+The bundled default configuration enables live coverage and diagnostics, but keeps the HUD text overlay disabled by default.
+
+---
 
 ## ⚙️ Configuration
 
@@ -164,6 +180,76 @@ Runtime override:
 
 When `recording_config.json` is present, values in that file override the default configuration.
 
+Example configuration:
+
+```json
+{
+  "sessionNameFormat": "yyyyMMdd_HHmmss",
+  "camera": {
+    "enabled": true,
+    "targetSaveFps": 10,
+    "preferOpenByCameraId": true,
+    "allowJavaMetadataFallback": false,
+    "left": {
+      "enabled": true,
+      "imageDirectoryName": "left_camera_raw",
+      "metadataFileName": "left_camera_characteristics.json",
+      "formatInfoFileName": "left_camera_image_format.json"
+    },
+    "right": {
+      "enabled": true,
+      "imageDirectoryName": "right_camera_raw",
+      "metadataFileName": "right_camera_characteristics.json",
+      "formatInfoFileName": "right_camera_image_format.json"
+    }
+  },
+  "depth": {
+    "enabled": true,
+    "targetSaveFps": 10,
+    "leftDirectoryName": "left_depth",
+    "rightDirectoryName": "right_depth",
+    "leftDescriptorFileName": "left_depth_descriptors.csv",
+    "rightDescriptorFileName": "right_depth_descriptors.csv"
+  },
+  "pose": {
+    "enabled": true,
+    "targetSaveFps": 30,
+    "hmdFileName": "hmd_poses.csv",
+    "leftControllerFileName": "left_controller_poses.csv",
+    "rightControllerFileName": "right_controller_poses.csv"
+  },
+  "liveFeedback": {
+    "enabled": true,
+    "coverage": {
+      "enabled": true,
+      "targetUpdateFps": 3,
+      "samplingStep": 24,
+      "voxelSizeMeters": 0.15,
+      "maxVoxels": 30000,
+      "minDepthMeters": 0.3,
+      "maxDepthMeters": 5.0,
+      "eye": "left",
+      "showSampleFrustums": false,
+      "frustumSampleIntervalSeconds": 1.0,
+      "maxFrustumSamples": 24,
+      "logPoseDiagnostics": false,
+      "poseDiagnosticIntervalSeconds": 1.0,
+      "flipVerticalProjection": true
+    },
+    "diagnostics": {
+      "enabled": true,
+      "showHud": false,
+      "showTrajectory": true,
+      "showTrackingEvents": true,
+      "positionJumpMeters": 0.3,
+      "rotationJumpDegrees": 30.0
+    }
+  }
+}
+```
+
+`targetSaveFps` controls the save rate. It does not force the underlying camera, depth, or tracking system update rate. A value of `0` saves every eligible update.
+
 Example deployment:
 
 ```bash
@@ -181,7 +267,7 @@ adb push recording_config.json /sdcard/Android/data/com.t34400.QuestRealityCaptu
    adb install QuestRealityCapture.apk
    ```
 3. Launch the app on **Meta Quest 3 or 3s** (firmware **v74+** required)
-4. When the green instruction panel appears, press the **menu button on the left controller** to dismiss it and start logging
+4. When the green instruction panel appears, press the **menu button on the left controller** or use the configured left-hand menu gesture to dismiss it and start logging
 5. Data will be saved under the session folder as described above
 
 Required permissions (camera/scene access) are requested automatically at runtime.
@@ -193,7 +279,7 @@ Required permissions (camera/scene access) are requested automatically at runtim
 * Unity **6000.4.5f1**
 * Meta OpenXR SDK
 * Device: Meta Quest 3 or 3s only
-* Approx. recording frame rate: \~60 FPS (camera & depth)
+* Camera, depth, and pose save rates are configurable through `recording_config.json`
 
 ---
 
