@@ -8,8 +8,8 @@ namespace RealityLog.Recording
     public sealed class RecordingDiagnosticsHud : MonoBehaviour
     {
         [SerializeField] private TextMesh? textMesh = null;
-        [SerializeField] private Vector3 cameraLocalPosition = new(0.0f, -0.32f, 1.2f);
-        [SerializeField, Min(0.001f)] private float characterSize = 0.035f;
+        [SerializeField] private Vector3 cameraLocalPosition = new(0.0f, -0.24f, 1.5f);
+        [SerializeField, Min(0.001f)] private float characterSize = 0.012f;
 
         private TrackingQualityMonitor? monitor;
         private TrajectoryVisualizer? trajectory;

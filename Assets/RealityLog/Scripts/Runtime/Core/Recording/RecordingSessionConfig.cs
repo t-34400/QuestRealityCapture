@@ -108,7 +108,7 @@ namespace RealityLog.Recording
         public sealed class DiagnosticsConfig
         {
             public bool enabled = true;
-            public bool showHud = true;
+            public bool showHud = false;
             public bool showTrajectory = true;
             public bool showTrackingEvents = true;
             public float positionJumpMeters = 0.3f;

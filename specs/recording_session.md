@@ -186,7 +186,7 @@ liveFeedback.coverage.minDepthMeters = 0.3
 liveFeedback.coverage.maxDepthMeters = 5.0
 liveFeedback.coverage.eye = left
 liveFeedback.diagnostics.enabled = true
-liveFeedback.diagnostics.showHud = true
+liveFeedback.diagnostics.showHud = false
 liveFeedback.diagnostics.showTrajectory = true
 liveFeedback.diagnostics.showTrackingEvents = true
 liveFeedback.diagnostics.positionJumpMeters = 0.3
@@ -253,7 +253,7 @@ Supported configuration fields include:
     },
     "diagnostics": {
       "enabled": true,
-      "showHud": true,
+      "showHud": false,
       "showTrajectory": true,
       "showTrackingEvents": true,
       "positionJumpMeters": 0.3,

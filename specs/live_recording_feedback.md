@@ -112,7 +112,7 @@ Supported fields include:
     },
     "diagnostics": {
       "enabled": true,
-      "showHud": true,
+      "showHud": false,
       "showTrajectory": true,
       "showTrackingEvents": true,
       "positionJumpMeters": 0.3,
