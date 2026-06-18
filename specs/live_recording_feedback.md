@@ -123,7 +123,7 @@ When `liveFeedback.enabled` and `liveFeedback.coverage.enabled` are both true, `
 
 Live coverage startup failure must be logged as a warning and must not fail or stop the recording session.
 
-The initial implementation samples one configured depth eye, defaults to the left eye, updates at the configured low rate, converts depth samples into Quest world-space points using the corresponding `DepthFrameDesc` pose and FOV tangents, inserts those points into a fixed-size GPU hash voxel map, and draws occupied voxels as camera-facing points.
+The initial implementation samples one configured depth eye, defaults to the left eye, updates at the configured low rate, converts raw depth buffer samples to linear meter depth using the corresponding `DepthFrameDesc.nearZ` and `DepthFrameDesc.farZ`, converts those depths into Quest world-space points using the corresponding `DepthFrameDesc` pose and FOV tangents, inserts those points into a fixed-size GPU hash voxel map, and draws occupied voxels as camera-facing points. Infinite or invalid far clipping values must use the infinite-far conversion branch.
 
 The visualizer must obtain depth textures through `DepthFrameProvider` and must not issue `AsyncGPUReadback` requests.
 

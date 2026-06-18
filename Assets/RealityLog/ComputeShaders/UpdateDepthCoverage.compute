@@ -19,6 +19,9 @@ float _FovLeftTan;
 float _FovRightTan;
 float _FovTopTan;
 float _FovDownTan;
+float _NearZ;
+float _FarZ;
+int _UseInfiniteFar;
 float4x4 _DepthCameraToWorld;
 
 static const int kMaxProbeCount = 8;
@@ -32,6 +35,32 @@ uint HashVoxel(int3 voxel, int segmentId)
     uint z = (uint)voxel.z * 83492791u;
     uint s = (uint)segmentId * 2654435761u;
     return x ^ y ^ z ^ s;
+}
+
+float RawDepthToLinearMeters(float depthBufferValue)
+{
+    float x;
+    float y;
+
+    if (_UseInfiniteFar != 0)
+    {
+        x = -2.0f * _NearZ;
+        y = -1.0f;
+    }
+    else
+    {
+        x = -2.0f * _FarZ * _NearZ / (_FarZ - _NearZ);
+        y = -(_FarZ + _NearZ) / (_FarZ - _NearZ);
+    }
+
+    float ndc = depthBufferValue * 2.0f - 1.0f;
+    float denom = ndc + y;
+    if (abs(denom) < 1.0e-6f)
+    {
+        return 0.0f;
+    }
+
+    return x / denom;
 }
 
 float3 PixelToCamera(float depthMeters, uint sourceX, uint sourceY)
@@ -60,7 +89,10 @@ void UpdateCoverage(uint3 id : SV_DispatchThreadID)
     if (sourceX >= (uint)_Width || sourceY >= (uint)_Height) return;
 
     uint textureY = (uint)_Height - sourceY - 1u;
-    float depthMeters = _DepthTexture[float3(sourceX, textureY, (uint)_EyeIndex)];
+    float rawDepth = _DepthTexture[float3(sourceX, textureY, (uint)_EyeIndex)];
+    if (rawDepth != rawDepth || rawDepth <= 0.0f || rawDepth >= 1.0f) return;
+
+    float depthMeters = RawDepthToLinearMeters(rawDepth);
     if (depthMeters != depthMeters || depthMeters < _MinDepthMeters || depthMeters > _MaxDepthMeters) return;
 
     float3 cameraPoint = PixelToCamera(depthMeters, sourceX, sourceY);

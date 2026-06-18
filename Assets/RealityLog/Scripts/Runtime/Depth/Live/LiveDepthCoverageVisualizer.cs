@@ -192,11 +192,19 @@ namespace RealityLog.Depth
             updateCoverageShader.SetFloat("_FovRightTan", descriptor.fovRightAngleTangent);
             updateCoverageShader.SetFloat("_FovTopTan", descriptor.fovTopAngleTangent);
             updateCoverageShader.SetFloat("_FovDownTan", descriptor.fovDownAngleTangent);
+            updateCoverageShader.SetFloat("_NearZ", descriptor.nearZ);
+            updateCoverageShader.SetFloat("_FarZ", descriptor.farZ);
+            updateCoverageShader.SetInt("_UseInfiniteFar", ShouldUseInfiniteFar(descriptor.nearZ, descriptor.farZ) ? 1 : 0);
             updateCoverageShader.SetMatrix("_DepthCameraToWorld", cameraToWorld);
 
             var groupsX = Mathf.CeilToInt(depthTexture.width / (float)(KernelThreadGroupSize * settings.samplingStep));
             var groupsY = Mathf.CeilToInt(depthTexture.height / (float)(KernelThreadGroupSize * settings.samplingStep));
             updateCoverageShader.Dispatch(updateKernel, Mathf.Max(1, groupsX), Mathf.Max(1, groupsY), 1);
+        }
+
+        private static bool ShouldUseInfiniteFar(float nearZ, float farZ)
+        {
+            return float.IsInfinity(farZ) || float.IsNaN(farZ) || farZ < nearZ;
         }
 
         private bool EnsureDependencies()
