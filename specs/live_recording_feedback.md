@@ -159,3 +159,15 @@ Coverage samples captured after the event should be stored under the new segment
 The initial segmented coverage renderer may draw the current segment at full opacity and previous segments at reduced opacity.
 
 Coverage segmentation is a visualization aid only. It must not stop recording, change output files, or modify persisted pose, depth, or camera data.
+
+---
+
+# Editor-Only Debug Coverage Source
+
+The live coverage visualizer may provide Editor-only debug point sources to isolate rendering problems from Quest depth sampling problems.
+
+Editor debug sources must be exposed only through Unity Editor inspector fields or Editor-only context menu actions guarded by `UNITY_EDITOR`.
+
+Editor debug source selection must not be part of the runtime recording JSON configuration and must not affect Quest runtime behavior.
+
+Editor debug coverage may bypass `DepthFrameProvider` and compute depth sampling, but it should use the same coverage point material, buffers, and draw path as runtime live coverage so that rendering and world-space placement can be tested independently.

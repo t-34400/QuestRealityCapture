@@ -6,6 +6,33 @@ using UnityEngine.Rendering;
 
 namespace RealityLog.Depth
 {
+#if UNITY_EDITOR
+    internal enum EditorCoverageSource
+    {
+        DepthProvider,
+        DebugGrid,
+        DebugAxes,
+        DebugFrustum
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    internal readonly struct EditorVoxelKey
+    {
+        public EditorVoxelKey(int x, int y, int z, int segmentId)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.segmentId = segmentId;
+        }
+
+        public readonly int x;
+        public readonly int y;
+        public readonly int z;
+        public readonly int segmentId;
+    }
+#endif
+
     public sealed class LiveDepthCoverageVisualizer : MonoBehaviour
     {
         private const int KernelThreadGroupSize = 8;
@@ -19,6 +46,15 @@ namespace RealityLog.Depth
         [SerializeField] private Material? coveragePointMaterial = null;
         [SerializeField, Min(0.001f)] private float pointSizeMeters = 0.03f;
         [SerializeField, Range(0.0f, 1.0f)] private float previousSegmentAlpha = 0.22f;
+#if UNITY_EDITOR
+        [Header("Editor Debug")]
+        [SerializeField] private EditorCoverageSource editorCoverageSource = EditorCoverageSource.DepthProvider;
+        [SerializeField] private bool startEditorDebugOnPlay = false;
+        [SerializeField, Min(1)] private int editorDebugGridResolution = 11;
+        [SerializeField, Min(0.1f)] private float editorDebugGridSizeMeters = 2.0f;
+        [SerializeField, Min(0.1f)] private float editorDebugGridDistanceMeters = 2.0f;
+        [SerializeField, Min(0.1f)] private float editorDebugAxisLengthMeters = 1.0f;
+#endif
 
         private DepthCoverageSettings settings = new(
             false,
@@ -44,6 +80,11 @@ namespace RealityLog.Depth
 
         public bool IsVisualizing => isVisualizing;
         public int CurrentSegmentId => currentSegmentId;
+#if UNITY_EDITOR
+        private bool UsesEditorDebugSource => Application.isEditor && editorCoverageSource != EditorCoverageSource.DepthProvider;
+#else
+        private bool UsesEditorDebugSource => false;
+#endif
 
         public void ApplyConfiguration(DepthCoverageSettings coverageSettings)
         {
@@ -54,7 +95,7 @@ namespace RealityLog.Depth
         {
             StopVisualization();
 
-            if (!settings.enabled)
+            if (!settings.enabled && !UsesEditorDebugSource)
             {
                 return true;
             }
@@ -68,10 +109,20 @@ namespace RealityLog.Depth
             {
                 AllocateBuffers(settings.maxVoxels);
                 ClearCoverageBuffers();
-                depthFrameProvider!.BeginDepthUsage();
-                hasBegunDepthUsage = true;
                 nextUpdateRealtime = 0f;
                 currentSegmentId = 0;
+
+#if UNITY_EDITOR
+                if (UsesEditorDebugSource)
+                {
+                    FillEditorDebugCoverage();
+                    isVisualizing = true;
+                    return true;
+                }
+#endif
+
+                depthFrameProvider!.BeginDepthUsage();
+                hasBegunDepthUsage = true;
                 isVisualizing = true;
                 return true;
             }
@@ -109,6 +160,16 @@ namespace RealityLog.Depth
             ResolveKernels();
         }
 
+#if UNITY_EDITOR
+        private void Start()
+        {
+            if (startEditorDebugOnPlay && UsesEditorDebugSource)
+            {
+                _ = TryStartVisualization();
+            }
+        }
+#endif
+
         private void OnDestroy()
         {
             StopVisualization();
@@ -127,6 +188,12 @@ namespace RealityLog.Depth
             }
 
             nextUpdateRealtime = Time.realtimeSinceStartup + settings.UpdateIntervalSeconds;
+#if UNITY_EDITOR
+            if (UsesEditorDebugSource)
+            {
+                return;
+            }
+#endif
             DispatchCoverageUpdate();
         }
 
@@ -212,6 +279,19 @@ namespace RealityLog.Depth
             ResolveDepthFrameProvider();
             ResolveKernels();
             ResolveMaterial();
+
+#if UNITY_EDITOR
+            if (UsesEditorDebugSource)
+            {
+                if (coveragePointMaterial == null && runtimeCoverageMaterial == null)
+                {
+                    Debug.LogWarning($"[{Constants.LOG_TAG}] Editor debug coverage requires a coverage point material or shader.");
+                    return false;
+                }
+
+                return true;
+            }
+#endif
 
             if (depthFrameProvider == null)
             {
@@ -335,6 +415,138 @@ namespace RealityLog.Depth
                 clearKernel = updateCoverageShader.FindKernel("ClearCoverage");
             }
         }
+
+#if UNITY_EDITOR
+        [ContextMenu("Start Editor Debug Coverage")]
+        private void StartEditorDebugCoverageFromContextMenu()
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.LogWarning($"[{Constants.LOG_TAG}] Enter Play Mode before starting editor debug coverage.");
+                return;
+            }
+
+            if (editorCoverageSource == EditorCoverageSource.DepthProvider)
+            {
+                editorCoverageSource = EditorCoverageSource.DebugGrid;
+            }
+
+            _ = TryStartVisualization();
+        }
+
+        [ContextMenu("Stop Editor Debug Coverage")]
+        private void StopEditorDebugCoverageFromContextMenu()
+        {
+            StopVisualization();
+        }
+
+        private void FillEditorDebugCoverage()
+        {
+            if (coveragePointsBuffer == null || voxelKeysBuffer == null || voxelOccupancyBuffer == null)
+            {
+                return;
+            }
+
+            var maxVoxels = settings.maxVoxels;
+            var points = new Vector4[maxVoxels];
+            var occupancy = new int[maxVoxels];
+            var keys = new EditorVoxelKey[maxVoxels];
+            var count = editorCoverageSource switch
+            {
+                EditorCoverageSource.DebugAxes => FillEditorDebugAxes(points, occupancy, keys),
+                EditorCoverageSource.DebugFrustum => FillEditorDebugFrustum(points, occupancy, keys),
+                _ => FillEditorDebugGrid(points, occupancy, keys),
+            };
+
+            voxelKeysBuffer.SetData(keys);
+            voxelOccupancyBuffer.SetData(occupancy);
+            coveragePointsBuffer.SetData(points);
+            Debug.Log($"[{Constants.LOG_TAG}] Editor debug coverage generated {count} points from {editorCoverageSource}.");
+        }
+
+        private int FillEditorDebugGrid(Vector4[] points, int[] occupancy, EditorVoxelKey[] keys)
+        {
+            var resolution = Mathf.Max(2, editorDebugGridResolution);
+            var spacing = editorDebugGridSizeMeters / (resolution - 1);
+            var halfSize = editorDebugGridSizeMeters * 0.5f;
+            var origin = transform.position + transform.forward * editorDebugGridDistanceMeters;
+            var count = 0;
+
+            for (var y = 0; y < resolution; y++)
+            {
+                for (var x = 0; x < resolution && count < points.Length; x++)
+                {
+                    var position = origin
+                        + transform.right * (-halfSize + x * spacing)
+                        + transform.up * (-halfSize + y * spacing);
+                    points[count] = new Vector4(position.x, position.y, position.z, currentSegmentId);
+                    occupancy[count] = 1;
+                    keys[count] = new EditorVoxelKey(x, y, 0, currentSegmentId);
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private int FillEditorDebugAxes(Vector4[] points, int[] occupancy, EditorVoxelKey[] keys)
+        {
+            var samplesPerAxis = Mathf.Max(2, editorDebugGridResolution);
+            var origin = transform.position + transform.forward * editorDebugGridDistanceMeters;
+            var count = 0;
+            count = FillEditorDebugLine(points, occupancy, keys, count, origin, origin + Vector3.right * editorDebugAxisLengthMeters, samplesPerAxis, 0);
+            count = FillEditorDebugLine(points, occupancy, keys, count, origin, origin + Vector3.up * editorDebugAxisLengthMeters, samplesPerAxis, 1);
+            count = FillEditorDebugLine(points, occupancy, keys, count, origin, origin + Vector3.forward * editorDebugAxisLengthMeters, samplesPerAxis, 2);
+            return count;
+        }
+
+        private int FillEditorDebugFrustum(Vector4[] points, int[] occupancy, EditorVoxelKey[] keys)
+        {
+            var origin = transform.position;
+            var center = origin + transform.forward * editorDebugGridDistanceMeters;
+            var halfSize = editorDebugGridSizeMeters * 0.5f;
+            var topLeft = center - transform.right * halfSize + transform.up * halfSize;
+            var topRight = center + transform.right * halfSize + transform.up * halfSize;
+            var bottomLeft = center - transform.right * halfSize - transform.up * halfSize;
+            var bottomRight = center + transform.right * halfSize - transform.up * halfSize;
+            var samples = Mathf.Max(2, editorDebugGridResolution);
+            var count = 0;
+            count = FillEditorDebugLine(points, occupancy, keys, count, origin, topLeft, samples, 0);
+            count = FillEditorDebugLine(points, occupancy, keys, count, origin, topRight, samples, 1);
+            count = FillEditorDebugLine(points, occupancy, keys, count, origin, bottomLeft, samples, 2);
+            count = FillEditorDebugLine(points, occupancy, keys, count, origin, bottomRight, samples, 3);
+            count = FillEditorDebugLine(points, occupancy, keys, count, topLeft, topRight, samples, 4);
+            count = FillEditorDebugLine(points, occupancy, keys, count, topRight, bottomRight, samples, 5);
+            count = FillEditorDebugLine(points, occupancy, keys, count, bottomRight, bottomLeft, samples, 6);
+            count = FillEditorDebugLine(points, occupancy, keys, count, bottomLeft, topLeft, samples, 7);
+            return count;
+        }
+
+        private int FillEditorDebugLine(
+            Vector4[] points,
+            int[] occupancy,
+            EditorVoxelKey[] keys,
+            int startIndex,
+            Vector3 start,
+            Vector3 end,
+            int samples,
+            int lineId)
+        {
+            var count = startIndex;
+            for (var i = 0; i < samples && count < points.Length; i++)
+            {
+                var t = samples == 1 ? 0.0f : i / (float)(samples - 1);
+                var position = Vector3.Lerp(start, end, t);
+                points[count] = new Vector4(position.x, position.y, position.z, currentSegmentId);
+                occupancy[count] = 1;
+                keys[count] = new EditorVoxelKey(lineId, i, 0, currentSegmentId);
+                count++;
+            }
+
+            return count;
+        }
+
+#endif
 
 #if UNITY_EDITOR
         private void OnValidate()
