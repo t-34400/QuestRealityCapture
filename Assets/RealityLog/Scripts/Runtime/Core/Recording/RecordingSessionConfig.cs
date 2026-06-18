@@ -13,14 +13,22 @@ namespace RealityLog.Recording
         public PoseConfig pose = new();
         public LiveFeedbackConfig liveFeedback = new();
 
+        public static class CameraBackend
+        {
+            public const string Mruk = "MRUK";
+            public const string NativeCamera2 = "NativeCamera2";
+        }
+
         [Serializable]
         public sealed class CameraConfig
         {
             public bool enabled = true;
+            public string backend = CameraBackend.Mruk;
             public int targetSaveFps = 10;
             public bool stereoMode = false;
             public float stereoMaxTimeDeltaSeconds = 0.02f;
             public string stereoPairFileName = "stereo_pairs.csv";
+            public string mrukStereoPairFileName = "mruk_stereo_pairs.csv";
             public bool preferOpenByCameraId = true;
             public bool allowJavaMetadataFallback = false;
             public CameraSideConfig left = CameraSideConfig.LeftDefaults();
@@ -34,6 +42,9 @@ namespace RealityLog.Recording
             public string imageDirectoryName = string.Empty;
             public string metadataFileName = string.Empty;
             public string formatInfoFileName = string.Empty;
+            public string mrukImageDirectoryName = string.Empty;
+            public string mrukIntrinsicsFileName = string.Empty;
+            public string mrukFrameMetadataFileName = string.Empty;
 
             public static CameraSideConfig LeftDefaults()
             {
@@ -41,7 +52,10 @@ namespace RealityLog.Recording
                 {
                     imageDirectoryName = "left_camera_raw",
                     metadataFileName = "left_camera_characteristics.json",
-                    formatInfoFileName = "left_camera_image_format.json"
+                    formatInfoFileName = "left_camera_image_format.json",
+                    mrukImageDirectoryName = "left_camera_mruk_rgba",
+                    mrukIntrinsicsFileName = "left_camera_mruk_intrinsics.json",
+                    mrukFrameMetadataFileName = "left_camera_mruk_frame_metadata.csv"
                 };
             }
 
@@ -51,7 +65,10 @@ namespace RealityLog.Recording
                 {
                     imageDirectoryName = "right_camera_raw",
                     metadataFileName = "right_camera_characteristics.json",
-                    formatInfoFileName = "right_camera_image_format.json"
+                    formatInfoFileName = "right_camera_image_format.json",
+                    mrukImageDirectoryName = "right_camera_mruk_rgba",
+                    mrukIntrinsicsFileName = "right_camera_mruk_intrinsics.json",
+                    mrukFrameMetadataFileName = "right_camera_mruk_frame_metadata.csv"
                 };
             }
         }

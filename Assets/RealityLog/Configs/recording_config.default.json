@@ -2,23 +2,31 @@
   "sessionNameFormat": "yyyyMMdd_HHmmss",
   "camera": {
     "enabled": true,
+    "backend": "MRUK",
     "targetSaveFps": 10,
     "preferOpenByCameraId": true,
     "allowJavaMetadataFallback": false,
     "stereoMode": false,
     "stereoMaxTimeDeltaSeconds": 0.02,
     "stereoPairFileName": "stereo_pairs.csv",
+    "mrukStereoPairFileName": "mruk_stereo_pairs.csv",
     "left": {
       "enabled": true,
       "imageDirectoryName": "left_camera_raw",
       "metadataFileName": "left_camera_characteristics.json",
-      "formatInfoFileName": "left_camera_image_format.json"
+      "formatInfoFileName": "left_camera_image_format.json",
+      "mrukImageDirectoryName": "left_camera_mruk_rgba",
+      "mrukIntrinsicsFileName": "left_camera_mruk_intrinsics.json",
+      "mrukFrameMetadataFileName": "left_camera_mruk_frame_metadata.csv"
     },
     "right": {
       "enabled": true,
       "imageDirectoryName": "right_camera_raw",
       "metadataFileName": "right_camera_characteristics.json",
-      "formatInfoFileName": "right_camera_image_format.json"
+      "formatInfoFileName": "right_camera_image_format.json",
+      "mrukImageDirectoryName": "right_camera_mruk_rgba",
+      "mrukIntrinsicsFileName": "right_camera_mruk_intrinsics.json",
+      "mrukFrameMetadataFileName": "right_camera_mruk_frame_metadata.csv"
     }
   },
   "depth": {

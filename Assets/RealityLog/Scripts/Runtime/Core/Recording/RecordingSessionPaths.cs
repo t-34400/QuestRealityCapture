@@ -7,23 +7,35 @@ namespace RealityLog.Recording
         public RecordingSessionPaths(
             string sessionName,
             string rootDirectoryPath,
+            string sessionInfoFilePath,
             CameraPaths leftCamera,
             CameraPaths rightCamera,
+            MrukCameraPaths leftMrukCamera,
+            MrukCameraPaths rightMrukCamera,
+            string mrukStereoPairFilePath,
             DepthPaths depth,
             PosePaths pose)
         {
             SessionName = sessionName;
             RootDirectoryPath = rootDirectoryPath;
+            SessionInfoFilePath = sessionInfoFilePath;
             LeftCamera = leftCamera;
             RightCamera = rightCamera;
+            LeftMrukCamera = leftMrukCamera;
+            RightMrukCamera = rightMrukCamera;
+            MrukStereoPairFilePath = mrukStereoPairFilePath;
             Depth = depth;
             Pose = pose;
         }
 
         public string SessionName { get; }
         public string RootDirectoryPath { get; }
+        public string SessionInfoFilePath { get; }
         public CameraPaths LeftCamera { get; }
         public CameraPaths RightCamera { get; }
+        public MrukCameraPaths LeftMrukCamera { get; }
+        public MrukCameraPaths RightMrukCamera { get; }
+        public string MrukStereoPairFilePath { get; }
         public DepthPaths Depth { get; }
         public PosePaths Pose { get; }
         public string PoseCsvFilePath => Pose.HmdFilePath;
@@ -31,6 +43,11 @@ namespace RealityLog.Recording
         public CameraPaths GetCameraPaths(RealityLog.Camera.CameraPosition position)
         {
             return position == RealityLog.Camera.CameraPosition.Right ? RightCamera : LeftCamera;
+        }
+
+        public MrukCameraPaths GetMrukCameraPaths(RealityLog.Camera.CameraPosition position)
+        {
+            return position == RealityLog.Camera.CameraPosition.Right ? RightMrukCamera : LeftMrukCamera;
         }
 
         public sealed class CameraPaths
@@ -45,6 +62,20 @@ namespace RealityLog.Recording
             public string ImageDirectoryPath { get; }
             public string MetadataFilePath { get; }
             public string FormatInfoFilePath { get; }
+        }
+
+        public sealed class MrukCameraPaths
+        {
+            public MrukCameraPaths(string imageDirectoryPath, string intrinsicsFilePath, string frameMetadataFilePath)
+            {
+                ImageDirectoryPath = imageDirectoryPath;
+                IntrinsicsFilePath = intrinsicsFilePath;
+                FrameMetadataFilePath = frameMetadataFilePath;
+            }
+
+            public string ImageDirectoryPath { get; }
+            public string IntrinsicsFilePath { get; }
+            public string FrameMetadataFilePath { get; }
         }
 
         public sealed class PosePaths

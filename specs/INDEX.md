@@ -49,6 +49,11 @@ Read `COMMON_RULES.md` before reading any other specification.
   * Defines the canonical QuestRealityCapture recording output layout and compatibility requirements.
 
 
+* `mruk_recording_format.md`
+  * Defines the MRUK camera backend output layout, timestamp/pose metadata expectations, RGBA frame persistence, and the compatibility boundary between MRUK output and legacy Camera2/YUV output.
+  * Read before modifying MRUK camera recording, MRUK frame persistence, MRUK intrinsics metadata, MRUK stereo pairing, or offline postprocess branching for MRUK sessions.
+
+
 ## Live Recording Feedback
 
 * `live_recording_feedback.md`

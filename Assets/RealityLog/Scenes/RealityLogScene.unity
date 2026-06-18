@@ -169,6 +169,7 @@ MonoBehaviour:
   - {fileID: 950167288}
   - {fileID: 1276772011}
   stereoCameraRecorder: {fileID: 1457542678}
+  mrukCameraRecorder: {fileID: 0}
   depthExporter: {fileID: 338253293}
   liveDepthCoverageVisualizer: {fileID: 338253294}
   recordingDiagnostics: {fileID: 0}
@@ -501,6 +502,9 @@ MonoBehaviour:
   pointSizeMeters: 0.01
   previousSegmentAlpha: 0.22
   particleRefreshIntervalSeconds: 0.25
+  frustumLineWidthMeters: 0.006
+  frustumDistanceMeters: 1
+  frustumAlpha: 0.28
   editorCoverageSource: 0
   startEditorDebugOnPlay: 0
   editorDebugGridResolution: 11
@@ -761,6 +765,55 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 487299148}
   m_CullTransparentMesh: 1
+--- !u!1 &537298346
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 537298347}
+  - component: {fileID: 537298348}
+  m_Layer: 0
+  m_Name: RightCamera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &537298347
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 537298346}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2098235646}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &537298348
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 537298346}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef9a7893e57c04c0db4114c70954b915, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: meta.xr.mrutilitykit::Meta.XR.PassthroughCameraAccess
+  CameraPosition: 1
+  RequestedResolution: {x: 1280, y: 1280}
+  _maxFramerate: 60
+  TargetMaterial: {fileID: 0}
+  _texturePropertyName: 
 --- !u!1 &665429596
 GameObject:
   m_ObjectHideFlags: 0
@@ -1306,7 +1359,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 808952ce293040078d0ced2764b6b40b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: RealityLog::RealityLog.Camera.NativeCameraRecorder
-  cameraPermissionManager: {fileID: 1457542675}
+  cameraPermissionManager: {fileID: 1030426409}
   cameraMetadataProvider: {fileID: 1457542676}
   allowJavaMetadataFallback: 0
   cameraPosition: 0
@@ -1424,6 +1477,84 @@ Transform:
   - {fileID: 223709103}
   m_Father: {fileID: 678640234}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1030426406
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1030426407}
+  - component: {fileID: 1030426409}
+  - component: {fileID: 1030426408}
+  m_Layer: 0
+  m_Name: PassthroughCamera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1030426407
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1030426406}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1457542674}
+  - {fileID: 2098235646}
+  m_Father: {fileID: 1104910058}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1030426408
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1030426406}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c654f22e70de7e4b8cf2b874aaadc05, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RealityLog::RealityLog.Camera.CameraPermissionGrantedUnityEvent
+  cameraPermissionManager: {fileID: 1030426409}
+  permissionGranted:
+    m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 1963279085}
+        m_TargetAssemblyTypeName: AnimationParameterSetter, Assembly-CSharp
+        m_MethodName: SetBool
+        m_Mode: 6
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 1
+        m_CallState: 2
+--- !u!114 &1030426409
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1030426406}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0c06f85669a6374ba47e388cdbf7d7b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RealityLog::RealityLog.Camera.CameraPermissionManager
+  requestAndroidCameraPermission: 1
+  requestHeadsetCameraPermission: 1
+  initializeLegacyJavaCameraManager: 1
 --- !u!1 &1104910057
 GameObject:
   m_ObjectHideFlags: 0
@@ -1454,7 +1585,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 137942828}
-  - {fileID: 1457542674}
+  - {fileID: 1030426407}
   - {fileID: 338253292}
   - {fileID: 1425492857}
   m_Father: {fileID: 0}
@@ -1628,6 +1759,55 @@ Transform:
   - {fileID: 2049423538}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1206335135
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1206335136}
+  - component: {fileID: 1206335137}
+  m_Layer: 0
+  m_Name: LeftCamera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1206335136
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1206335135}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2098235646}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1206335137
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1206335135}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef9a7893e57c04c0db4114c70954b915, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: meta.xr.mrutilitykit::Meta.XR.PassthroughCameraAccess
+  CameraPosition: 0
+  RequestedResolution: {x: 1280, y: 1280}
+  _maxFramerate: 60
+  TargetMaterial: {fileID: 0}
+  _texturePropertyName: 
 --- !u!1 &1276772009
 GameObject:
   m_ObjectHideFlags: 0
@@ -1672,7 +1852,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 808952ce293040078d0ced2764b6b40b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: RealityLog::RealityLog.Camera.NativeCameraRecorder
-  cameraPermissionManager: {fileID: 1457542675}
+  cameraPermissionManager: {fileID: 1030426409}
   cameraMetadataProvider: {fileID: 1457542676}
   allowJavaMetadataFallback: 0
   cameraPosition: 1
@@ -1725,12 +1905,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1457542674}
-  - component: {fileID: 1457542675}
   - component: {fileID: 1457542676}
-  - component: {fileID: 1457542677}
   - component: {fileID: 1457542678}
   m_Layer: 0
-  m_Name: PassthroughCamera
+  m_Name: Legacy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1744,30 +1922,15 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1457542673}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 950167287}
   - {fileID: 1276772010}
-  m_Father: {fileID: 1104910058}
+  m_Father: {fileID: 1030426407}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1457542675
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1457542673}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b0c06f85669a6374ba47e388cdbf7d7b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: RealityLog::RealityLog.Camera.CameraPermissionManager
-  requestAndroidCameraPermission: 1
-  requestHeadsetCameraPermission: 1
-  initializeLegacyJavaCameraManager: 1
 --- !u!114 &1457542676
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1780,34 +1943,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 77308a45a2629f64387ef267c1c948d1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: RealityLog::RealityLog.Camera.NativeCameraMetadataProvider
---- !u!114 &1457542677
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1457542673}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6c654f22e70de7e4b8cf2b874aaadc05, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: RealityLog::RealityLog.Camera.CameraPermissionGrantedUnityEvent
-  cameraPermissionManager: {fileID: 1457542675}
-  permissionGranted:
-    m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 1963279085}
-        m_TargetAssemblyTypeName: AnimationParameterSetter, Assembly-CSharp
-        m_MethodName: SetBool
-        m_Mode: 6
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 1
-        m_CallState: 2
 --- !u!114 &1457542678
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1820,7 +1955,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5a36d3d50474446fbb4f29d067425cea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: RealityLog::RealityLog.Camera.NativeStereoCameraRecorder
-  cameraPermissionManager: {fileID: 1457542675}
+  cameraPermissionManager: {fileID: 1030426409}
   cameraMetadataProvider: {fileID: 1457542676}
   allowJavaMetadataFallback: 0
   dataDirectoryName: 
@@ -2256,6 +2391,56 @@ MonoBehaviour:
   targetSaveFps: 0
   startLoggingOnStart: 0
   trackingSpace: {fileID: 0}
+--- !u!1 &2098235645
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2098235646}
+  - component: {fileID: 2098235647}
+  m_Layer: 0
+  m_Name: MRUK
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2098235646
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2098235645}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1206335136}
+  - {fileID: 537298347}
+  m_Father: {fileID: 1030426407}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2098235647
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2098235645}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a401567d8cf468cbb365da5a697a5d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: RealityLog.Recording::RealityLog.Recording.MrukCameraRecorder
+  leftCameraAccess: {fileID: 1206335137}
+  rightCameraAccess: {fileID: 537298348}
+  autoDiscoverCameraAccess: 1
+  maxFramesPerCamera: 0
 --- !u!1 &2119440226
 GameObject:
   m_ObjectHideFlags: 0

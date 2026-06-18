@@ -14,6 +14,7 @@ namespace RealityLog.Recording
         [SerializeField] private string externalConfigPath = RecordingConfigLoader.DefaultExternalConfigPath;
         [SerializeField] private NativeCameraRecorder[] cameraRecorders = new NativeCameraRecorder[0];
         [SerializeField] private NativeStereoCameraRecorder? stereoCameraRecorder = null;
+        [SerializeField] private MrukCameraRecorder? mrukCameraRecorder = null;
         [SerializeField] private DepthMapExporter? depthExporter = null;
         [SerializeField] private LiveDepthCoverageVisualizer? liveDepthCoverageVisualizer = null;
         [SerializeField] private RecordingDiagnosticsController? recordingDiagnostics = null;
@@ -26,6 +27,7 @@ namespace RealityLog.Recording
         private readonly RecordingSessionPathProvider pathProvider = new();
         private readonly List<NativeCameraRecorder> startedCameraRecorders = new();
         private NativeStereoCameraRecorder? startedStereoCameraRecorder;
+        private MrukCameraRecorder? startedMrukCameraRecorder;
         private readonly List<PoseLogger> startedPoseLoggers = new();
         private RecordingSessionConfig? activeConfig;
         private RecordingSessionPaths? activePaths;
@@ -77,6 +79,12 @@ namespace RealityLog.Recording
             }
 
             activePaths = pathProvider.Create(activeConfig);
+            if (!SessionInfoWriter.TryWrite(activePaths.SessionInfoFilePath, activeConfig.camera.backend))
+            {
+                ClearActiveSessionState();
+                return false;
+            }
+
             ConfigureModules(activeConfig, activePaths);
 
             if (!StartCameraRecorders(activeConfig))
@@ -132,6 +140,23 @@ namespace RealityLog.Recording
 
         private bool ValidateConfiguredModules(RecordingSessionConfig config)
         {
+            if (!config.camera.enabled)
+            {
+                return ValidateNonCameraModules(config);
+            }
+
+            if (IsMrukBackend(config))
+            {
+                EnsureMrukCameraRecorderReference();
+                if (mrukCameraRecorder == null)
+                {
+                    Debug.LogError($"[{Constants.LOG_TAG}] MRUK camera backend is selected, but no MRUK camera recorder is assigned.");
+                    return false;
+                }
+
+                return ValidateNonCameraModules(config);
+            }
+
             EnsureStereoCameraRecorderReference(config);
 
             if (RequiresStereoCameraRecorder(config))
@@ -157,6 +182,11 @@ namespace RealityLog.Recording
                 }
             }
 
+            return ValidateNonCameraModules(config);
+        }
+
+        private bool ValidateNonCameraModules(RecordingSessionConfig config)
+        {
             if (config.depth.enabled && depthExporter == null)
             {
                 Debug.LogError($"[{Constants.LOG_TAG}] Recording session depth export is enabled, but no depth exporter is assigned.");
@@ -172,6 +202,15 @@ namespace RealityLog.Recording
             return true;
         }
 
+        private static bool IsMrukBackend(RecordingSessionConfig config)
+        {
+            return string.Equals(config.camera.backend, RecordingSessionConfig.CameraBackend.Mruk, System.StringComparison.Ordinal);
+        }
+
+        private static bool IsNativeCamera2Backend(RecordingSessionConfig config)
+        {
+            return string.Equals(config.camera.backend, RecordingSessionConfig.CameraBackend.NativeCamera2, System.StringComparison.Ordinal);
+        }
 
         private bool RequiresStereoCameraRecorder(RecordingSessionConfig config)
         {
@@ -184,6 +223,22 @@ namespace RealityLog.Recording
         private bool ShouldUseStereoCameraRecorder(RecordingSessionConfig config)
         {
             return stereoCameraRecorder != null && RequiresStereoCameraRecorder(config);
+        }
+
+        private void EnsureMrukCameraRecorderReference()
+        {
+            if (mrukCameraRecorder != null)
+            {
+                return;
+            }
+
+            mrukCameraRecorder = GetComponentInChildren<MrukCameraRecorder>(includeInactive: true)
+                ?? FindAnyObjectByType<MrukCameraRecorder>(FindObjectsInactive.Include);
+
+            if (mrukCameraRecorder != null)
+            {
+                Debug.Log($"[{Constants.LOG_TAG}] Recording session found MRUK camera recorder automatically: {mrukCameraRecorder.name}");
+            }
         }
 
         private void EnsureStereoCameraRecorderReference(RecordingSessionConfig config)
@@ -230,15 +285,22 @@ namespace RealityLog.Recording
 
         private void ConfigureModules(RecordingSessionConfig config, RecordingSessionPaths paths)
         {
-            if (ShouldUseStereoCameraRecorder(config))
+            if (IsMrukBackend(config))
             {
-                stereoCameraRecorder?.ApplyConfiguration(config, paths);
+                mrukCameraRecorder?.ApplyConfiguration(config, paths);
             }
-            else
+            else if (IsNativeCamera2Backend(config))
             {
-                foreach (var recorder in cameraRecorders)
+                if (ShouldUseStereoCameraRecorder(config))
                 {
-                    recorder?.ApplyConfiguration(config, paths);
+                    stereoCameraRecorder?.ApplyConfiguration(config, paths);
+                }
+                else
+                {
+                    foreach (var recorder in cameraRecorders)
+                    {
+                        recorder?.ApplyConfiguration(config, paths);
+                    }
                 }
             }
 
@@ -309,6 +371,12 @@ namespace RealityLog.Recording
             if (!config.camera.enabled)
             {
                 return true;
+            }
+
+            if (IsMrukBackend(config))
+            {
+                startedMrukCameraRecorder = mrukCameraRecorder;
+                return startedMrukCameraRecorder != null && startedMrukCameraRecorder.StartRecording();
             }
 
             if (ShouldUseStereoCameraRecorder(config))
@@ -456,6 +524,12 @@ namespace RealityLog.Recording
                 depthStarted = false;
             }
 
+            if (startedMrukCameraRecorder != null)
+            {
+                success &= startedMrukCameraRecorder.StopRecording();
+                startedMrukCameraRecorder = null;
+            }
+
             if (startedStereoCameraRecorder != null)
             {
                 success &= startedStereoCameraRecorder.StopRecording();
@@ -489,6 +563,7 @@ namespace RealityLog.Recording
             depthStarted = false;
             liveCoverageStarted = false;
             diagnosticsStarted = false;
+            startedMrukCameraRecorder = null;
         }
 
         private void Start()
