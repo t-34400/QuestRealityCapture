@@ -117,7 +117,9 @@ close cameras when configured
 
 If any enabled recording module fails to start, the session controller must stop already-started modules and close any camera recorder whose native lifecycle may have been partially opened.
 
-When camera recording is enabled, each enabled camera side in the active configuration must have a matching native camera recorder assigned before the session starts.
+When camera recording is enabled in non-stereo mode, each enabled camera side in the active configuration must have a matching native camera recorder assigned before the session starts.
+
+When `camera.stereoMode` is enabled with both camera sides enabled, the session controller must start a native stereo camera recorder instead of the independent left/right recorders. If no stereo recorder is assigned or discoverable, startup must fail with a clear error rather than silently falling back to independent recording.
 
 Depth and pose modules must report start success or failure to the session controller so that session startup does not silently continue after output initialization fails.
 

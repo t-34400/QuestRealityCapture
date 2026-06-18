@@ -126,11 +126,8 @@ Example structure:
 
 ### Passthrough Camera (Raw YUV)
 - Raw YUV frames are stored as `.yuv` files under `left_camera_raw/` and `right_camera_raw/`.
-- Both normal native recording and native stereo recording use these same camera directories and the same raw `.yuv` byte layout.
 - Image format and buffer information are provided in the accompanying `*_camera_image_format.json` files.
-- In normal native recording, the left and right camera recorders save frames independently. Each side applies `camera.targetSaveFps` as an independent save-rate throttle.
-- In native stereo recording, frames are first matched by native image timestamp. Only pairs within `camera.stereoMaxTimeDeltaSeconds` are saved, and `camera.targetSaveFps` is then applied to the matched pairs.
-- Native stereo recording does not create a different raw image format. It adds `stereo_pairs.csv` at the session root so downstream tools can read the exact left/right association instead of inferring pairs from file order or filenames.
+- When native stereo mode is enabled, left/right frames are matched by native image timestamp before saving. The session root includes `stereo_pairs.csv` with:
 
   ```text
   pair_index,left_timestamp_ns,right_timestamp_ns,delta_ns,left_unix_ms,right_unix_ms,left_file,right_file
@@ -260,9 +257,7 @@ Example configuration:
 }
 ```
 
-`targetSaveFps` controls the save rate. It does not force the underlying camera, depth, or tracking system update rate. A value of `0` saves every eligible update. In normal native camera recording, `camera.targetSaveFps` is applied independently to each enabled camera side. In native stereo mode, left/right frames are timestamp-paired first and `camera.targetSaveFps` is applied after pairing, so it limits saved stereo pairs rather than each camera stream independently.
-
-`camera.stereoMode` changes the native recording algorithm, not the raw image format. When it is `true`, the session still writes `.yuv` frames under `left_camera_raw/` and `right_camera_raw/`; the additional `stereo_pairs.csv` file records which left and right files form each accepted pair.
+`targetSaveFps` controls the save rate. It does not force the underlying camera, depth, or tracking system update rate. A value of `0` saves every eligible update. In native stereo mode, `camera.targetSaveFps` is applied after timestamp pairing, so it limits saved stereo pairs rather than each camera stream independently.
 
 Native stereo camera settings:
 

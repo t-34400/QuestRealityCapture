@@ -132,7 +132,17 @@ namespace RealityLog.Recording
 
         private bool ValidateConfiguredModules(RecordingSessionConfig config)
         {
-            if (!ShouldUseStereoCameraRecorder(config))
+            EnsureStereoCameraRecorderReference(config);
+
+            if (RequiresStereoCameraRecorder(config))
+            {
+                if (stereoCameraRecorder == null)
+                {
+                    Debug.LogError($"[{Constants.LOG_TAG}] Recording session stereoMode is enabled, but no native stereo camera recorder is assigned.");
+                    return false;
+                }
+            }
+            else
             {
                 if (config.camera.enabled && config.camera.left.enabled && !HasEnabledCameraRecorder(CameraPosition.Left))
                 {
@@ -163,13 +173,33 @@ namespace RealityLog.Recording
         }
 
 
-        private bool ShouldUseStereoCameraRecorder(RecordingSessionConfig config)
+        private bool RequiresStereoCameraRecorder(RecordingSessionConfig config)
         {
-            return stereoCameraRecorder != null
-                && config.camera.enabled
+            return config.camera.enabled
                 && config.camera.stereoMode
                 && config.camera.left.enabled
                 && config.camera.right.enabled;
+        }
+
+        private bool ShouldUseStereoCameraRecorder(RecordingSessionConfig config)
+        {
+            return stereoCameraRecorder != null && RequiresStereoCameraRecorder(config);
+        }
+
+        private void EnsureStereoCameraRecorderReference(RecordingSessionConfig config)
+        {
+            if (!RequiresStereoCameraRecorder(config) || stereoCameraRecorder != null)
+            {
+                return;
+            }
+
+            stereoCameraRecorder = GetComponentInChildren<NativeStereoCameraRecorder>(includeInactive: true)
+                ?? FindAnyObjectByType<NativeStereoCameraRecorder>(FindObjectsInactive.Include);
+
+            if (stereoCameraRecorder != null)
+            {
+                Debug.Log($"[{Constants.LOG_TAG}] Recording session found native stereo camera recorder automatically: {stereoCameraRecorder.name}");
+            }
         }
 
         private bool HasEnabledCameraRecorder(CameraPosition position)
