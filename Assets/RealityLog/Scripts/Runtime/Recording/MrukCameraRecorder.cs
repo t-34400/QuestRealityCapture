@@ -10,14 +10,13 @@ using UnityEngine;
 
 namespace RealityLog.Recording
 {
-    [DefaultExecutionOrder(-50)]
     public class MrukCameraRecorder : MonoBehaviour
     {
         [SerializeField] private PassthroughCameraAccess? leftCameraAccess = null;
         [SerializeField] private PassthroughCameraAccess? rightCameraAccess = null;
         [SerializeField] private bool autoDiscoverCameraAccess = true;
-        [SerializeField] private bool disableCameraAccessOnStop = true;
         [SerializeField, Min(0)] private int maxFramesPerCamera = 0;
+        [SerializeField] private bool stopCameraAccessOnStop = true;
 
         private RecordingSessionConfig? config;
         private RecordingSessionPaths? paths;
@@ -58,8 +57,7 @@ namespace RealityLog.Recording
                 return false;
             }
 
-            PrepareCameraAccess(leftState);
-            PrepareCameraAccess(rightState);
+            EnableConfiguredCameraAccesses();
 
             Directory.CreateDirectory(paths.RootDirectoryPath);
             leftFrameWriter = leftState.Enabled
@@ -92,18 +90,18 @@ namespace RealityLog.Recording
             }
 
             recording = false;
-            if (disableCameraAccessOnStop)
-            {
-                DisableCameraAccess(leftState);
-                DisableCameraAccess(rightState);
-            }
-
             leftFrameWriter?.Dispose();
             leftFrameWriter = null;
             rightFrameWriter?.Dispose();
             rightFrameWriter = null;
             pairWriter?.Dispose();
             pairWriter = null;
+
+            if (stopCameraAccessOnStop)
+            {
+                StopConfiguredCameraAccesses();
+            }
+
             Debug.Log($"[{Constants.LOG_TAG}] MRUK camera recording stopped. LeftFrames={leftState.FrameCount}, RightFrames={rightState.FrameCount}");
             return true;
         }
@@ -171,22 +169,15 @@ namespace RealityLog.Recording
             var isUpdatedThisFrame = access.IsUpdatedThisFrame;
             if (!access.IsPlaying)
             {
-                state.LogSkipOncePerSecond($"{state.CameraName} MRUK camera is not playing yet.");
+                state.LogNotPlayingWarning();
                 return false;
             }
 
             var timestampUs = ToUnixMicroseconds(access.Timestamp);
-            if (timestampUs <= 0L)
-            {
-                state.LogSkipOncePerSecond($"{state.CameraName} MRUK camera timestamp is not available yet.");
-                return false;
-            }
-
-            if (timestampUs <= state.LastTimestampUs)
+            if (timestampUs <= 0 || timestampUs == state.LastTimestampUs)
             {
                 return false;
             }
-
             var timestampMs = timestampUs / 1000L;
             var currentResolution = access.CurrentResolution;
             var width = currentResolution.x;
@@ -348,34 +339,6 @@ namespace RealityLog.Recording
             return true;
         }
 
-        private static void PrepareCameraAccess(CameraRecordingState state)
-        {
-            if (!state.Enabled || state.Access == null)
-            {
-                return;
-            }
-
-            if (!state.Access.gameObject.activeSelf)
-            {
-                state.Access.gameObject.SetActive(true);
-            }
-
-            if (!state.Access.enabled)
-            {
-                state.Access.enabled = true;
-            }
-        }
-
-        private static void DisableCameraAccess(CameraRecordingState state)
-        {
-            if (!state.Enabled || state.Access == null)
-            {
-                return;
-            }
-
-            state.Access.enabled = false;
-        }
-
         private static PassthroughCameraAccess? FindCameraAccess(PassthroughCameraAccess.CameraPositionType position)
         {
             foreach (var access in FindObjectsByType<PassthroughCameraAccess>(FindObjectsInactive.Include))
@@ -387,6 +350,40 @@ namespace RealityLog.Recording
             }
 
             return null;
+        }
+
+
+        private void EnableConfiguredCameraAccesses()
+        {
+            EnableCameraAccess(leftState);
+            EnableCameraAccess(rightState);
+        }
+
+        private static void EnableCameraAccess(CameraRecordingState state)
+        {
+            if (!state.Enabled || state.Access == null || state.Access.enabled)
+            {
+                return;
+            }
+
+            state.Access.enabled = true;
+        }
+
+        private void StopConfiguredCameraAccesses()
+        {
+            StopCameraAccess(leftState);
+            StopCameraAccess(rightState);
+        }
+
+        private static void StopCameraAccess(CameraRecordingState state)
+        {
+            var access = state.Access;
+            if (!state.Enabled || access == null || !access.enabled)
+            {
+                return;
+            }
+
+            access.enabled = false;
         }
 
         private void WriteIntrinsics(CameraRecordingState state, string filePath)
@@ -478,18 +475,7 @@ namespace RealityLog.Recording
             public int LastFrameIndex { get; set; }
             public long LastTimestampUs { get; set; }
             public string LastFileName { get; set; } = string.Empty;
-            private float nextSkipLogRealtime;
-
-            public void LogSkipOncePerSecond(string message)
-            {
-                if (Time.realtimeSinceStartup < nextSkipLogRealtime)
-                {
-                    return;
-                }
-
-                nextSkipLogRealtime = Time.realtimeSinceStartup + 1f;
-                Debug.LogWarning($"[{Constants.LOG_TAG}] {message}");
-            }
+            private float nextNotPlayingWarningRealtime;
 
             public void ResetRuntimeState()
             {
@@ -497,7 +483,19 @@ namespace RealityLog.Recording
                 LastFrameIndex = 0;
                 LastTimestampUs = 0L;
                 LastFileName = string.Empty;
-                nextSkipLogRealtime = 0f;
+                nextNotPlayingWarningRealtime = 0f;
+            }
+
+            public void LogNotPlayingWarning()
+            {
+                var now = Time.realtimeSinceStartup;
+                if (now < nextNotPlayingWarningRealtime)
+                {
+                    return;
+                }
+
+                nextNotPlayingWarningRealtime = now + 1f;
+                Debug.LogWarning($"[{Constants.LOG_TAG}] MRUK {CameraName} camera is enabled but not playing yet.");
             }
         }
 
