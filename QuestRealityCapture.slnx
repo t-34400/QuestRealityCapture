@@ -32,12 +32,15 @@
   <Project Path="Unity.VisualStudio.Editor.csproj" />
   <Project Path="Unity.InputSystem.csproj" />
   <Project Path="Unity.XR.ARFoundation.csproj" />
+  <Project Path="meta.xr.ai.mcpbridge.csproj" />
   <Project Path="Meta.XR.ImmersiveDebugger.csproj" />
+  <Project Path="meta.xr.mrutilitykit.editor.csproj" />
   <Project Path="Unity.XR.CoreUtils.csproj" />
   <Project Path="Unity.XR.Simulation.Editor.csproj" />
   <Project Path="Meta.XR.RuntimeOptimizer.Core.csproj" />
   <Project Path="Unity.Searcher.Editor.csproj" />
   <Project Path="Oculus.Interaction.Samples.csproj" />
+  <Project Path="meta.xr.mrutilitykit.csproj" />
   <Project Path="Unity.XR.Hands.csproj" />
   <Project Path="UnityEditor.TestRunner.csproj" />
   <Project Path="Unity.XR.MetaOpenXR.csproj" />
@@ -53,6 +56,7 @@
   <Project Path="RealityLog.csproj" />
   <Project Path="Unity.VisualScripting.Flow.csproj" />
   <Project Path="Unity.PerformanceTesting.csproj" />
+  <Project Path="meta.xr.ai.agentbridge.editor.csproj" />
   <Project Path="Unity.TextMeshPro.csproj" />
   <Project Path="Unity.XR.CompositionLayers.UIInteraction.csproj" />
   <Project Path="Unity.TextMeshPro.Editor.csproj" />
@@ -61,6 +65,7 @@
   <Project Path="Unity.XR.CompositionLayers.Editor.csproj" />
   <Project Path="Unity.Burst.Editor.csproj" />
   <Project Path="Meta.XR.Editor.Tags.csproj" />
+  <Project Path="Meta.XR.ImmersiveDebugger.DevAgent.csproj" />
   <Project Path="Unity.Rider.Editor.csproj" />
   <Project Path="Unity.XR.ARFoundation.VisualScripting.csproj" />
   <Project Path="Unity.VisualScripting.State.csproj" />
@@ -82,8 +87,10 @@
   <Project Path="Meta.XR.ImmersiveDebugger.Editor.csproj" />
   <Project Path="Unity.XR.CoreUtils.Editor.csproj" />
   <Project Path="Unity.AI.Navigation.Editor.csproj" />
+  <Project Path="meta.xr.ai.mcpbridge.editor.csproj" />
   <Project Path="Unity.RenderPipelines.Core.Editor.Shared.csproj" />
   <Project Path="Unity.XR.OpenXR.Editor.csproj" />
+  <Project Path="meta.xr.ai.agentbridge.csproj" />
   <Project Path="Oculus.Interaction.UnityXR.csproj" />
   <Project Path="Unity.Multiplayer.Center.Common.csproj" />
   <Project Path="Unity.XR.Management.Editor.csproj" />
@@ -93,6 +100,7 @@
   <Project Path="Unity.RenderPipelines.Core.Runtime.Shared.csproj" />
   <Project Path="Meta.XR.MultiplayerBlocks.Shared.Editor.csproj" />
   <Project Path="MetaXRSimulatorCore.Editor.csproj" />
+  <Project Path="Meta.XR.ImmersiveDebugger.DevAgent.Tools.csproj" />
   <Project Path="Unity.InputSystem.ForUI.csproj" />
   <Project Path="Oculus.Interaction.Editor.UnityXR.csproj" />
   <Project Path="Meta.XR.Editor.RemoteContent.csproj" />
@@ -128,6 +136,7 @@
   <Project Path="Unity.SurfaceCache.Runtime.csproj" />
   <Project Path="meta.xr.ai.agentbridge.telemetry.csproj" />
   <Project Path="Unity.InternalAPIEngineBridge.RenderPipelines.Core.Runtime.Shared.csproj" />
+  <Project Path="Meta.XR.ImmersiveDebugger.DevAgent.Editor.csproj" />
   <Project Path="Meta.XR.Guides.Editor.csproj" />
   <Project Path="Unity.XR.OpenXR.Features.MetaQuestSupport.csproj" />
   <Project Path="Meta.XR.ImmersiveDebugger.Interface.csproj" />
