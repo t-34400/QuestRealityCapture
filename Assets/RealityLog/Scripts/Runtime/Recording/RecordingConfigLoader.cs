@@ -118,6 +118,79 @@ namespace RealityLog.Recording
             config.pose.leftControllerFileName = NormalizeText(config.pose.leftControllerFileName, "left_controller_poses.csv", "pose.leftControllerFileName");
             config.pose.rightControllerFileName = NormalizeText(config.pose.rightControllerFileName, "right_controller_poses.csv", "pose.rightControllerFileName");
             config.pose.fileName = config.pose.fileName ?? string.Empty;
+
+            NormalizeLiveFeedback(config);
+        }
+
+
+        private static void NormalizeLiveFeedback(RecordingSessionConfig config)
+        {
+            config.liveFeedback ??= new RecordingSessionConfig.LiveFeedbackConfig();
+            config.liveFeedback.coverage ??= new RecordingSessionConfig.CoverageConfig();
+            config.liveFeedback.diagnostics ??= new RecordingSessionConfig.DiagnosticsConfig();
+
+            var coverage = config.liveFeedback.coverage;
+            coverage.targetUpdateFps = NormalizeFps(coverage.targetUpdateFps, "liveFeedback.coverage.targetUpdateFps");
+            coverage.samplingStep = NormalizePositiveInt(coverage.samplingStep, 24, "liveFeedback.coverage.samplingStep");
+            coverage.voxelSizeMeters = NormalizePositiveFloat(coverage.voxelSizeMeters, 0.15f, "liveFeedback.coverage.voxelSizeMeters");
+            coverage.maxVoxels = NormalizePositiveInt(coverage.maxVoxels, 30000, "liveFeedback.coverage.maxVoxels");
+            coverage.minDepthMeters = NormalizePositiveFloat(coverage.minDepthMeters, 0.3f, "liveFeedback.coverage.minDepthMeters");
+            coverage.maxDepthMeters = NormalizeDepthMax(coverage.maxDepthMeters, coverage.minDepthMeters, "liveFeedback.coverage.maxDepthMeters");
+            coverage.eye = NormalizeEye(coverage.eye, "liveFeedback.coverage.eye");
+
+            var diagnostics = config.liveFeedback.diagnostics;
+            diagnostics.positionJumpMeters = NormalizePositiveFloat(diagnostics.positionJumpMeters, 0.3f, "liveFeedback.diagnostics.positionJumpMeters");
+            diagnostics.rotationJumpDegrees = NormalizePositiveFloat(diagnostics.rotationJumpDegrees, 30.0f, "liveFeedback.diagnostics.rotationJumpDegrees");
+        }
+
+        private static int NormalizePositiveInt(int value, int defaultValue, string name)
+        {
+            if (value > 0)
+            {
+                return value;
+            }
+
+            Debug.LogError($"[{Constants.LOG_TAG}] Invalid non-positive recording config value {name}={value}. Using {defaultValue}.");
+            return defaultValue;
+        }
+
+        private static float NormalizePositiveFloat(float value, float defaultValue, string name)
+        {
+            if (value > 0f && !float.IsNaN(value) && !float.IsInfinity(value))
+            {
+                return value;
+            }
+
+            Debug.LogError($"[{Constants.LOG_TAG}] Invalid non-positive recording config value {name}={value}. Using {defaultValue}.");
+            return defaultValue;
+        }
+
+        private static float NormalizeDepthMax(float value, float minDepthMeters, string name)
+        {
+            if (value > minDepthMeters && !float.IsNaN(value) && !float.IsInfinity(value))
+            {
+                return value;
+            }
+
+            var fallback = Math.Max(minDepthMeters + 0.1f, 5.0f);
+            Debug.LogError($"[{Constants.LOG_TAG}] Invalid recording config value {name}={value}. Using {fallback}.");
+            return fallback;
+        }
+
+        private static string NormalizeEye(string? value, string name)
+        {
+            if (string.Equals(value, "left", StringComparison.OrdinalIgnoreCase))
+            {
+                return "left";
+            }
+
+            if (string.Equals(value, "right", StringComparison.OrdinalIgnoreCase))
+            {
+                return "right";
+            }
+
+            Debug.LogWarning($"[{Constants.LOG_TAG}] Invalid recording config value {name}={value}. Using left.");
+            return "left";
         }
 
         private static RecordingSessionConfig.CameraSideConfig NormalizeCameraSide(

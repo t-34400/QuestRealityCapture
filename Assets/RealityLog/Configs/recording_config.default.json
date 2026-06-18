@@ -32,5 +32,26 @@
     "hmdFileName": "hmd_poses.csv",
     "leftControllerFileName": "left_controller_poses.csv",
     "rightControllerFileName": "right_controller_poses.csv"
+  },
+  "liveFeedback": {
+    "enabled": false,
+    "coverage": {
+      "enabled": true,
+      "targetUpdateFps": 3,
+      "samplingStep": 24,
+      "voxelSizeMeters": 0.15,
+      "maxVoxels": 30000,
+      "minDepthMeters": 0.3,
+      "maxDepthMeters": 5.0,
+      "eye": "left"
+    },
+    "diagnostics": {
+      "enabled": true,
+      "showHud": true,
+      "showTrajectory": true,
+      "showTrackingEvents": true,
+      "positionJumpMeters": 0.3,
+      "rotationJumpDegrees": 30.0
+    }
   }
 }

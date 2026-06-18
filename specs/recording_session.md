@@ -172,6 +172,21 @@ pose.targetSaveFps = 30
 pose.hmdFileName = hmd_poses.csv
 pose.leftControllerFileName = left_controller_poses.csv
 pose.rightControllerFileName = right_controller_poses.csv
+liveFeedback.enabled = false
+liveFeedback.coverage.enabled = true
+liveFeedback.coverage.targetUpdateFps = 3
+liveFeedback.coverage.samplingStep = 24
+liveFeedback.coverage.voxelSizeMeters = 0.15
+liveFeedback.coverage.maxVoxels = 30000
+liveFeedback.coverage.minDepthMeters = 0.3
+liveFeedback.coverage.maxDepthMeters = 5.0
+liveFeedback.coverage.eye = left
+liveFeedback.diagnostics.enabled = true
+liveFeedback.diagnostics.showHud = true
+liveFeedback.diagnostics.showTrajectory = true
+liveFeedback.diagnostics.showTrackingEvents = true
+liveFeedback.diagnostics.positionJumpMeters = 0.3
+liveFeedback.diagnostics.rotationJumpDegrees = 30.0
 ```
 
 Packaged example/default JSON should remain available at:
@@ -219,9 +234,33 @@ Supported configuration fields include:
     "hmdFileName": "hmd_poses.csv",
     "leftControllerFileName": "left_controller_poses.csv",
     "rightControllerFileName": "right_controller_poses.csv"
+  },
+  "liveFeedback": {
+    "enabled": false,
+    "coverage": {
+      "enabled": true,
+      "targetUpdateFps": 3,
+      "samplingStep": 24,
+      "voxelSizeMeters": 0.15,
+      "maxVoxels": 30000,
+      "minDepthMeters": 0.3,
+      "maxDepthMeters": 5.0,
+      "eye": "left"
+    },
+    "diagnostics": {
+      "enabled": true,
+      "showHud": true,
+      "showTrajectory": true,
+      "showTrackingEvents": true,
+      "positionJumpMeters": 0.3,
+      "rotationJumpDegrees": 30.0
+    }
   }
 }
 ```
+
+
+Live feedback configuration is defined in `live_recording_feedback.md`. The recording session configuration owns deserialization and defaulting of the `liveFeedback` block, but live feedback remains optional and must not change the recording output layout.
 
 `targetSaveFps` values should be interpreted as save-rate throttles. They should not imply that the underlying camera, depth, or tracking systems must change their capture/update rate.
 

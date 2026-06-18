@@ -11,6 +11,7 @@ namespace RealityLog.Recording
         public CameraConfig camera = new();
         public DepthConfig depth = new();
         public PoseConfig pose = new();
+        public LiveFeedbackConfig liveFeedback = new();
 
         [Serializable]
         public sealed class CameraConfig
@@ -74,6 +75,38 @@ namespace RealityLog.Recording
 
             // Kept so older override JSON files fail soft instead of losing pose output entirely.
             public string fileName = string.Empty;
+        }
+
+        [Serializable]
+        public sealed class LiveFeedbackConfig
+        {
+            public bool enabled = false;
+            public CoverageConfig coverage = new();
+            public DiagnosticsConfig diagnostics = new();
+        }
+
+        [Serializable]
+        public sealed class CoverageConfig
+        {
+            public bool enabled = true;
+            public int targetUpdateFps = 3;
+            public int samplingStep = 24;
+            public float voxelSizeMeters = 0.15f;
+            public int maxVoxels = 30000;
+            public float minDepthMeters = 0.3f;
+            public float maxDepthMeters = 5.0f;
+            public string eye = "left";
+        }
+
+        [Serializable]
+        public sealed class DiagnosticsConfig
+        {
+            public bool enabled = true;
+            public bool showHud = true;
+            public bool showTrajectory = true;
+            public bool showTrackingEvents = true;
+            public float positionJumpMeters = 0.3f;
+            public float rotationJumpDegrees = 30.0f;
         }
     }
 }
