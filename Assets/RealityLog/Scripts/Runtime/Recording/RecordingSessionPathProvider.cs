@@ -14,25 +14,60 @@ namespace RealityLog.Recording
             var rootDirectoryPath = Path.Combine(Application.persistentDataPath, sessionName);
             Directory.CreateDirectory(rootDirectoryPath);
 
-            var leftCamera = CreateCameraPaths(rootDirectoryPath, config.camera.left);
-            var rightCamera = CreateCameraPaths(rootDirectoryPath, config.camera.right);
+            var isNativeCamera2 = config.camera.backend == RecordingSessionConfig.CameraBackend.NativeCamera2;
+            var isMruk = config.camera.backend == RecordingSessionConfig.CameraBackend.Mruk;
+            var leftCamera = CreateCameraPaths(rootDirectoryPath, config.camera.left, isNativeCamera2);
+            var rightCamera = CreateCameraPaths(rootDirectoryPath, config.camera.right, isNativeCamera2);
+            var leftMrukCamera = CreateMrukCameraPaths(rootDirectoryPath, config.camera.left, isMruk);
+            var rightMrukCamera = CreateMrukCameraPaths(rootDirectoryPath, config.camera.right, isMruk);
             var depth = CreateDepthPaths(rootDirectoryPath, config.depth);
             var pose = CreatePosePaths(rootDirectoryPath, config.pose);
 
-            return new RecordingSessionPaths(sessionName, rootDirectoryPath, leftCamera, rightCamera, depth, pose);
+            return new RecordingSessionPaths(
+                sessionName,
+                rootDirectoryPath,
+                Path.Combine(rootDirectoryPath, "session_info.json"),
+                leftCamera,
+                rightCamera,
+                leftMrukCamera,
+                rightMrukCamera,
+                Path.Combine(rootDirectoryPath, config.camera.mrukStereoPairFileName),
+                depth,
+                pose);
         }
 
         private static RecordingSessionPaths.CameraPaths CreateCameraPaths(
             string rootDirectoryPath,
-            RecordingSessionConfig.CameraSideConfig config)
+            RecordingSessionConfig.CameraSideConfig config,
+            bool createDirectory)
         {
             var imageDirectoryPath = Path.Combine(rootDirectoryPath, config.imageDirectoryName);
-            Directory.CreateDirectory(imageDirectoryPath);
+            if (createDirectory)
+            {
+                Directory.CreateDirectory(imageDirectoryPath);
+            }
 
             return new RecordingSessionPaths.CameraPaths(
                 imageDirectoryPath,
                 Path.Combine(rootDirectoryPath, config.metadataFileName),
                 Path.Combine(rootDirectoryPath, config.formatInfoFileName));
+        }
+
+        private static RecordingSessionPaths.MrukCameraPaths CreateMrukCameraPaths(
+            string rootDirectoryPath,
+            RecordingSessionConfig.CameraSideConfig config,
+            bool createDirectory)
+        {
+            var imageDirectoryPath = Path.Combine(rootDirectoryPath, config.mrukImageDirectoryName);
+            if (createDirectory)
+            {
+                Directory.CreateDirectory(imageDirectoryPath);
+            }
+
+            return new RecordingSessionPaths.MrukCameraPaths(
+                imageDirectoryPath,
+                Path.Combine(rootDirectoryPath, config.mrukIntrinsicsFileName),
+                Path.Combine(rootDirectoryPath, config.mrukFrameMetadataFileName));
         }
 
         private static RecordingSessionPaths.PosePaths CreatePosePaths(

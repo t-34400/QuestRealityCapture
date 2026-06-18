@@ -83,6 +83,7 @@ namespace RealityLog.Recording
                 "sessionNameFormat");
 
             config.camera ??= new RecordingSessionConfig.CameraConfig();
+            config.camera.backend = NormalizeCameraBackend(config.camera.backend);
             config.camera.targetSaveFps = NormalizeFps(config.camera.targetSaveFps, "camera.targetSaveFps");
             config.camera.stereoMaxTimeDeltaSeconds = NormalizePositiveFloat(
                 config.camera.stereoMaxTimeDeltaSeconds,
@@ -92,6 +93,10 @@ namespace RealityLog.Recording
                 config.camera.stereoPairFileName,
                 "stereo_pairs.csv",
                 "camera.stereoPairFileName");
+            config.camera.mrukStereoPairFileName = NormalizeText(
+                config.camera.mrukStereoPairFileName,
+                "mruk_stereo_pairs.csv",
+                "camera.mrukStereoPairFileName");
             config.camera.left = NormalizeCameraSide(
                 config.camera.left,
                 RecordingSessionConfig.CameraSideConfig.LeftDefaults(),
@@ -202,6 +207,22 @@ namespace RealityLog.Recording
             return "left";
         }
 
+        private static string NormalizeCameraBackend(string? value)
+        {
+            if (string.Equals(value, RecordingSessionConfig.CameraBackend.Mruk, StringComparison.OrdinalIgnoreCase))
+            {
+                return RecordingSessionConfig.CameraBackend.Mruk;
+            }
+
+            if (string.Equals(value, RecordingSessionConfig.CameraBackend.NativeCamera2, StringComparison.OrdinalIgnoreCase))
+            {
+                return RecordingSessionConfig.CameraBackend.NativeCamera2;
+            }
+
+            Debug.LogWarning($"[{Constants.LOG_TAG}] Invalid recording config value camera.backend={value}. Using MRUK.");
+            return RecordingSessionConfig.CameraBackend.Mruk;
+        }
+
         private static RecordingSessionConfig.CameraSideConfig NormalizeCameraSide(
             RecordingSessionConfig.CameraSideConfig? side,
             RecordingSessionConfig.CameraSideConfig defaults,
@@ -220,6 +241,18 @@ namespace RealityLog.Recording
                 side.formatInfoFileName,
                 defaults.formatInfoFileName,
                 $"{name}.formatInfoFileName");
+            side.mrukImageDirectoryName = NormalizeText(
+                side.mrukImageDirectoryName,
+                defaults.mrukImageDirectoryName,
+                $"{name}.mrukImageDirectoryName");
+            side.mrukIntrinsicsFileName = NormalizeText(
+                side.mrukIntrinsicsFileName,
+                defaults.mrukIntrinsicsFileName,
+                $"{name}.mrukIntrinsicsFileName");
+            side.mrukFrameMetadataFileName = NormalizeText(
+                side.mrukFrameMetadataFileName,
+                defaults.mrukFrameMetadataFileName,
+                $"{name}.mrukFrameMetadataFileName");
             return side;
         }
 

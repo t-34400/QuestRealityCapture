@@ -77,6 +77,12 @@ namespace RealityLog.Recording
             }
 
             activePaths = pathProvider.Create(activeConfig);
+            if (!SessionInfoWriter.TryWrite(activePaths.SessionInfoFilePath, activeConfig.camera.backend))
+            {
+                ClearActiveSessionState();
+                return false;
+            }
+
             ConfigureModules(activeConfig, activePaths);
 
             if (!StartCameraRecorders(activeConfig))
@@ -132,6 +138,17 @@ namespace RealityLog.Recording
 
         private bool ValidateConfiguredModules(RecordingSessionConfig config)
         {
+            if (!config.camera.enabled)
+            {
+                return ValidateNonCameraModules(config);
+            }
+
+            if (IsMrukBackend(config))
+            {
+                Debug.LogError($"[{Constants.LOG_TAG}] MRUK camera backend is selected, but MRUK recorder integration is not implemented in this build.");
+                return false;
+            }
+
             EnsureStereoCameraRecorderReference(config);
 
             if (RequiresStereoCameraRecorder(config))
@@ -157,6 +174,11 @@ namespace RealityLog.Recording
                 }
             }
 
+            return ValidateNonCameraModules(config);
+        }
+
+        private bool ValidateNonCameraModules(RecordingSessionConfig config)
+        {
             if (config.depth.enabled && depthExporter == null)
             {
                 Debug.LogError($"[{Constants.LOG_TAG}] Recording session depth export is enabled, but no depth exporter is assigned.");
@@ -172,6 +194,15 @@ namespace RealityLog.Recording
             return true;
         }
 
+        private static bool IsMrukBackend(RecordingSessionConfig config)
+        {
+            return string.Equals(config.camera.backend, RecordingSessionConfig.CameraBackend.Mruk, System.StringComparison.Ordinal);
+        }
+
+        private static bool IsNativeCamera2Backend(RecordingSessionConfig config)
+        {
+            return string.Equals(config.camera.backend, RecordingSessionConfig.CameraBackend.NativeCamera2, System.StringComparison.Ordinal);
+        }
 
         private bool RequiresStereoCameraRecorder(RecordingSessionConfig config)
         {
@@ -230,15 +261,18 @@ namespace RealityLog.Recording
 
         private void ConfigureModules(RecordingSessionConfig config, RecordingSessionPaths paths)
         {
-            if (ShouldUseStereoCameraRecorder(config))
+            if (IsNativeCamera2Backend(config))
             {
-                stereoCameraRecorder?.ApplyConfiguration(config, paths);
-            }
-            else
-            {
-                foreach (var recorder in cameraRecorders)
+                if (ShouldUseStereoCameraRecorder(config))
                 {
-                    recorder?.ApplyConfiguration(config, paths);
+                    stereoCameraRecorder?.ApplyConfiguration(config, paths);
+                }
+                else
+                {
+                    foreach (var recorder in cameraRecorders)
+                    {
+                        recorder?.ApplyConfiguration(config, paths);
+                    }
                 }
             }
 
@@ -309,6 +343,12 @@ namespace RealityLog.Recording
             if (!config.camera.enabled)
             {
                 return true;
+            }
+
+            if (IsMrukBackend(config))
+            {
+                Debug.LogError($"[{Constants.LOG_TAG}] MRUK camera backend is selected, but MRUK recorder integration is not implemented in this build.");
+                return false;
             }
 
             if (ShouldUseStereoCameraRecorder(config))
