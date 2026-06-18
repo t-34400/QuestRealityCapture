@@ -162,6 +162,15 @@ Coverage segmentation is a visualization aid only. It must not stop recording, c
 
 ---
 
+
+# Runtime Particle Rendering Diagnostic
+
+A standalone runtime dummy particle visualizer may be provided to isolate Unity, XR origin, and Particle System rendering behavior from depth sampling and depth pose conversion.
+
+The diagnostic visualizer must not read depth textures, must not allocate live coverage compute buffers, must not change recording output files, and must not be controlled by recording JSON configuration. It may place a fixed world-space particle grid or axes in front of a selected reference transform once at startup or through an inspector context action.
+
+The diagnostic particles must use `ParticleSystemSimulationSpace.World` so operators can verify whether particles remain fixed when the HMD or XR origin moves. If dummy particles drift, the problem is in Unity/XR/ParticleSystem rendering or world-origin handling. If dummy particles remain fixed while live depth coverage drifts, the problem is in depth sampling, pose conversion, frame synchronization, or coverage accumulation.
+
 # Editor-Only Debug Coverage Source
 
 The live coverage visualizer may provide Editor-only debug point sources to isolate rendering problems from Quest depth sampling problems.
