@@ -14,6 +14,7 @@ namespace RealityLog.Recording
         [SerializeField] private string externalConfigPath = RecordingConfigLoader.DefaultExternalConfigPath;
         [SerializeField] private NativeCameraRecorder[] cameraRecorders = new NativeCameraRecorder[0];
         [SerializeField] private DepthMapExporter? depthExporter = null;
+        [SerializeField] private LiveDepthCoverageVisualizer? liveDepthCoverageVisualizer = null;
         [SerializeField] private PoseLogger? poseLogger = null;
         [SerializeField] private PoseLogger[] poseLoggers = new PoseLogger[0];
         [SerializeField] private bool startRecordingOnStart = false;
@@ -26,6 +27,7 @@ namespace RealityLog.Recording
         private RecordingSessionConfig? activeConfig;
         private RecordingSessionPaths? activePaths;
         private bool depthStarted;
+        private bool liveCoverageStarted;
         private bool recording;
         private float nextRecordingToggleRealtime;
 
@@ -86,6 +88,8 @@ namespace RealityLog.Recording
                 ClearActiveSessionState();
                 return false;
             }
+
+            StartLiveCoverage(activeConfig);
 
             if (!StartPoseLogger(activeConfig))
             {
@@ -184,6 +188,7 @@ namespace RealityLog.Recording
             }
 
             depthExporter?.ApplyConfiguration(config.depth, paths.Depth);
+            liveDepthCoverageVisualizer?.ApplyConfiguration(config.liveFeedback);
             ConfigurePoseLoggers(config.pose, paths.Pose);
         }
 
@@ -266,6 +271,29 @@ namespace RealityLog.Recording
             return true;
         }
 
+
+        private void StartLiveCoverage(RecordingSessionConfig config)
+        {
+            if (!config.liveFeedback.enabled || !config.liveFeedback.coverage.enabled)
+            {
+                return;
+            }
+
+            if (liveDepthCoverageVisualizer == null)
+            {
+                Debug.LogWarning($"[{Constants.LOG_TAG}] Live depth coverage is enabled, but no LiveDepthCoverageVisualizer is assigned.");
+                return;
+            }
+
+            if (!liveDepthCoverageVisualizer.TryStartVisualization())
+            {
+                Debug.LogWarning($"[{Constants.LOG_TAG}] Live depth coverage failed to start. Recording will continue without coverage visualization.");
+                return;
+            }
+
+            liveCoverageStarted = true;
+        }
+
         private bool StartPoseLogger(RecordingSessionConfig config)
         {
             if (!config.pose.enabled)
@@ -302,6 +330,12 @@ namespace RealityLog.Recording
 
             startedPoseLoggers.Clear();
 
+            if (liveCoverageStarted && liveDepthCoverageVisualizer != null)
+            {
+                liveDepthCoverageVisualizer.StopVisualization();
+                liveCoverageStarted = false;
+            }
+
             if (depthStarted && depthExporter != null)
             {
                 depthExporter.StopExport();
@@ -328,6 +362,7 @@ namespace RealityLog.Recording
             activeConfig = null;
             activePaths = null;
             depthStarted = false;
+            liveCoverageStarted = false;
         }
 
         private void Start()

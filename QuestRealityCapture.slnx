@@ -96,6 +96,7 @@
   <Project Path="Oculus.Interaction.Editor.UnityXR.csproj" />
   <Project Path="Meta.XR.Editor.RemoteContent.csproj" />
   <Project Path="Unity.AI.Navigation.csproj" />
+  <Project Path="RealityLog.Depth.csproj" />
   <Project Path="Unity.Collections.CodeGen.csproj" />
   <Project Path="Meta.XR.MetaWand.Editor.csproj" />
   <Project Path="Unity.XR.Management.csproj" />
@@ -133,7 +134,6 @@
   <Project Path="Unity.CollabProxy.Editor.csproj" />
   <Project Path="Oculus.Interaction.Samples.Editor.csproj" />
   <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
-  <Project Path="RealityLog.Depth.csproj" />
   <Project Path="Meta.XR.RuntimeOptimizer.csproj" />
   <Project Path="Meta.XR.Editor.Callbacks.csproj" />
   <Project Path="RealityLog.Recording.csproj" />

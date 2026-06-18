@@ -267,3 +267,13 @@ Live feedback configuration is defined in `live_recording_feedback.md`. The reco
 A `targetSaveFps` value of zero means that every eligible update may be saved.
 
 Negative FPS values are invalid and should be avoided by configuration authors.
+
+---
+
+# Live Coverage Session Hook
+
+Recording session orchestration may start optional live coverage feedback after depth export startup and before pose logging startup.
+
+Live coverage feedback is not a persistence module. Failure to start live coverage must not fail the recording session, and live coverage must not change session directory creation or recorded file layouts.
+
+On stop, live coverage feedback should be stopped before depth export so shared depth provider usage is released before the depth exporter is stopped.

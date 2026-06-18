@@ -112,3 +112,19 @@ Supported fields include:
 
 Older configuration JSON files that omit `liveFeedback` must continue to load and must behave as if live feedback is disabled.
 
+
+---
+
+# Initial Live Coverage Implementation
+
+The initial live coverage implementation uses a GPU-resident coarse voxel map.
+
+When `liveFeedback.enabled` and `liveFeedback.coverage.enabled` are both true, `RecordingSessionController` may start a `LiveDepthCoverageVisualizer` after depth export startup and before pose logging startup.
+
+Live coverage startup failure must be logged as a warning and must not fail or stop the recording session.
+
+The initial implementation samples one configured depth eye, defaults to the left eye, updates at the configured low rate, converts depth samples into Quest world-space points using the corresponding `DepthFrameDesc` pose and FOV tangents, inserts those points into a fixed-size GPU hash voxel map, and draws occupied voxels as camera-facing points.
+
+The visualizer must obtain depth textures through `DepthFrameProvider` and must not issue `AsyncGPUReadback` requests.
+
+When coverage visualization stops, feedback-only compute buffers must be released and the visualizer must end its depth provider usage.
