@@ -168,10 +168,10 @@ namespace RealityLog.Depth
                     timestampNs = timestampNs,
                     createPoseLocation = poses[i].position,
                     createPoseRotation = poses[i].rotation,
-                    fovLeftAngleTangent = Mathf.Tan(fovs[i].angleLeft),
-                    fovRightAngleTangent = Mathf.Tan(fovs[i].angleRight),
-                    fovTopAngleTangent = Mathf.Tan(fovs[i].angleUp),
-                    fovDownAngleTangent = Mathf.Tan(fovs[i].angleDown),
+                    fovLeftAngleTangent = Mathf.Tan(Mathf.Abs(fovs[i].angleLeft)),
+                    fovRightAngleTangent = Mathf.Tan(Mathf.Abs(fovs[i].angleRight)),
+                    fovTopAngleTangent = Mathf.Tan(Mathf.Abs(fovs[i].angleUp)),
+                    fovDownAngleTangent = Mathf.Tan(Mathf.Abs(fovs[i].angleDown)),
                     nearZ = planes.nearZ,
                     farZ = planes.farZ
                 };

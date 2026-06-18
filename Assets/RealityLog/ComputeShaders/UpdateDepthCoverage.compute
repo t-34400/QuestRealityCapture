@@ -37,38 +37,12 @@ uint HashVoxel(int3 voxel, int segmentId)
     return x ^ y ^ z ^ s;
 }
 
-float RawDepthToLinearMeters(float depthBufferValue)
-{
-    float x;
-    float y;
-
-    if (_UseInfiniteFar != 0)
-    {
-        x = -2.0f * _NearZ;
-        y = -1.0f;
-    }
-    else
-    {
-        x = -2.0f * _FarZ * _NearZ / (_FarZ - _NearZ);
-        y = -(_FarZ + _NearZ) / (_FarZ - _NearZ);
-    }
-
-    float ndc = depthBufferValue * 2.0f - 1.0f;
-    float denom = ndc + y;
-    if (abs(denom) < 1.0e-6f)
-    {
-        return 0.0f;
-    }
-
-    return x / denom;
-}
-
-float3 PixelToCamera(float depthMeters, uint sourceX, uint sourceY)
+float3 PixelToDepthCamera(float depthMeters, uint sourceX, uint sourceY)
 {
     float u = ((float)sourceX + 0.5f) / max(1.0f, (float)_Width);
     float v = ((float)sourceY + 0.5f) / max(1.0f, (float)_Height);
-    float xTan = lerp(_FovLeftTan, _FovRightTan, u);
-    float yTan = lerp(_FovDownTan, _FovTopTan, v);
+    float xTan = lerp(-_FovLeftTan, _FovRightTan, u);
+    float yTan = lerp(-_FovDownTan, _FovTopTan, v);
     return float3(xTan * depthMeters, yTan * depthMeters, -depthMeters);
 }
 
@@ -89,13 +63,29 @@ void UpdateCoverage(uint3 id : SV_DispatchThreadID)
     if (sourceX >= (uint)_Width || sourceY >= (uint)_Height) return;
 
     uint textureY = (uint)_Height - sourceY - 1u;
-    float rawDepth = _DepthTexture[float3(sourceX, textureY, (uint)_EyeIndex)];
+    float rawDepth = _DepthTexture.Load(int4((int)sourceX, (int)textureY, _EyeIndex, 0));
     if (rawDepth != rawDepth || rawDepth <= 0.0f || rawDepth >= 1.0f) return;
 
-    float depthMeters = RawDepthToLinearMeters(rawDepth);
+    float depthScale = -2.0f * _NearZ;
+    float depthBias = -1.0f;
+    if (_UseInfiniteFar == 0)
+    {
+        float depthRange = _FarZ - _NearZ;
+        if (depthRange > 1.0e-6f)
+        {
+            depthScale = -2.0f * _FarZ * _NearZ / depthRange;
+            depthBias = -(_FarZ + _NearZ) / depthRange;
+        }
+    }
+
+    float ndcDepth = rawDepth * 2.0f - 1.0f;
+    float denom = ndcDepth + depthBias;
+    if (abs(denom) < 1.0e-6f) return;
+
+    float depthMeters = depthScale / denom;
     if (depthMeters != depthMeters || depthMeters < _MinDepthMeters || depthMeters > _MaxDepthMeters) return;
 
-    float3 cameraPoint = PixelToCamera(depthMeters, sourceX, sourceY);
+    float3 cameraPoint = PixelToDepthCamera(depthMeters, sourceX, sourceY);
     float3 worldPoint = mul(_DepthCameraToWorld, float4(cameraPoint, 1.0f)).xyz;
     int3 voxel = (int3)floor(worldPoint / _VoxelSizeMeters);
     uint baseSlot = HashVoxel(voxel, _SegmentId) % (uint)_MaxVoxels;

@@ -33,6 +33,12 @@ namespace RealityLog.Depth
     }
 #endif
 
+    internal enum DepthCoverageRenderMode
+    {
+        ParticleSystem = 0,
+        ProceduralBillboard = 1
+    }
+
     public sealed class LiveDepthCoverageVisualizer : MonoBehaviour
     {
         private const int KernelThreadGroupSize = 8;
@@ -44,8 +50,11 @@ namespace RealityLog.Depth
         [SerializeField] private ComputeShader? updateCoverageShader = null;
         [SerializeField] private Shader? coveragePointShader = null;
         [SerializeField] private Material? coveragePointMaterial = null;
+        [SerializeField] private Transform? trackingSpace = null;
+        [SerializeField] private DepthCoverageRenderMode renderMode = DepthCoverageRenderMode.ParticleSystem;
         [SerializeField, Min(0.001f)] private float pointSizeMeters = 0.03f;
         [SerializeField, Range(0.0f, 1.0f)] private float previousSegmentAlpha = 0.22f;
+        [SerializeField, Min(0.05f)] private float particleRefreshIntervalSeconds = 0.25f;
 #if UNITY_EDITOR
         [Header("Editor Debug")]
         [SerializeField] private EditorCoverageSource editorCoverageSource = EditorCoverageSource.DepthProvider;
@@ -70,6 +79,7 @@ namespace RealityLog.Depth
         private ComputeBuffer? voxelOccupancyBuffer;
         private ComputeBuffer? coveragePointsBuffer;
         private Material? runtimeCoverageMaterial;
+        private DepthCoverageParticleRenderer? particleRenderer;
         private int updateKernel = InvalidKernel;
         private int clearKernel = InvalidKernel;
         private bool isVisualizing;
@@ -109,6 +119,7 @@ namespace RealityLog.Depth
             {
                 AllocateBuffers(settings.maxVoxels);
                 ClearCoverageBuffers();
+                PrepareRenderer();
                 nextUpdateRealtime = 0f;
                 currentSegmentId = 0;
 
@@ -144,6 +155,7 @@ namespace RealityLog.Depth
                 hasBegunDepthUsage = false;
             }
 
+            ClearParticles();
             ReleaseBuffers();
         }
 
@@ -178,6 +190,9 @@ namespace RealityLog.Depth
                 Destroy(runtimeCoverageMaterial);
                 runtimeCoverageMaterial = null;
             }
+
+            particleRenderer?.Dispose();
+            particleRenderer = null;
         }
 
         private void Update()
@@ -195,11 +210,16 @@ namespace RealityLog.Depth
             }
 #endif
             DispatchCoverageUpdate();
+            RefreshParticleRendererIfNeeded();
         }
 
         private void OnRenderObject()
         {
-            if (!isVisualizing || coveragePointsBuffer == null || voxelKeysBuffer == null || voxelOccupancyBuffer == null)
+            if (renderMode != DepthCoverageRenderMode.ProceduralBillboard
+                || !isVisualizing
+                || coveragePointsBuffer == null
+                || voxelKeysBuffer == null
+                || voxelOccupancyBuffer == null)
             {
                 return;
             }
@@ -240,7 +260,7 @@ namespace RealityLog.Depth
 
             var eyeIndex = Mathf.Clamp((int)settings.eye, 0, FrameDescriptorCount - 1);
             var descriptor = frameDescriptors[eyeIndex];
-            var cameraToWorld = Matrix4x4.TRS(descriptor.createPoseLocation, descriptor.createPoseRotation, Vector3.one);
+            var cameraToWorld = CalculateDepthCameraToWorld(descriptor);
 
             updateCoverageShader.SetTexture(updateKernel, "_DepthTexture", depthTexture);
             updateCoverageShader.SetBuffer(updateKernel, "_VoxelKeys", voxelKeysBuffer);
@@ -269,6 +289,19 @@ namespace RealityLog.Depth
             updateCoverageShader.Dispatch(updateKernel, Mathf.Max(1, groupsX), Mathf.Max(1, groupsY), 1);
         }
 
+
+        private Matrix4x4 CalculateDepthCameraToWorld(DepthFrameDesc descriptor)
+        {
+            var depthCameraToTracking = Matrix4x4.TRS(
+                descriptor.createPoseLocation,
+                descriptor.createPoseRotation,
+                new Vector3(1.0f, 1.0f, -1.0f));
+
+            return trackingSpace != null
+                ? trackingSpace.localToWorldMatrix * depthCameraToTracking
+                : depthCameraToTracking;
+        }
+
         private static bool ShouldUseInfiniteFar(float nearZ, float farZ)
         {
             return float.IsInfinity(farZ) || float.IsNaN(farZ) || farZ < nearZ;
@@ -283,9 +316,9 @@ namespace RealityLog.Depth
 #if UNITY_EDITOR
             if (UsesEditorDebugSource)
             {
-                if (coveragePointMaterial == null && runtimeCoverageMaterial == null)
+                if (renderMode == DepthCoverageRenderMode.ProceduralBillboard && coveragePointMaterial == null && runtimeCoverageMaterial == null)
                 {
-                    Debug.LogWarning($"[{Constants.LOG_TAG}] Editor debug coverage requires a coverage point material or shader.");
+                    Debug.LogWarning($"[{Constants.LOG_TAG}] Editor debug coverage requires a coverage point material or shader when procedural rendering is selected.");
                     return false;
                 }
 
@@ -304,9 +337,9 @@ namespace RealityLog.Depth
                 return false;
             }
 
-            if (coveragePointMaterial == null && runtimeCoverageMaterial == null)
+            if (renderMode == DepthCoverageRenderMode.ProceduralBillboard && coveragePointMaterial == null && runtimeCoverageMaterial == null)
             {
-                Debug.LogWarning($"[{Constants.LOG_TAG}] Live coverage is enabled, but no coverage point material or shader is assigned.");
+                Debug.LogWarning($"[{Constants.LOG_TAG}] Live coverage is enabled, but no coverage point material or shader is assigned for procedural rendering.");
                 return false;
             }
 
@@ -365,6 +398,41 @@ namespace RealityLog.Depth
             {
                 depthFrameProvider = FindAnyObjectByType<DepthFrameProvider>();
             }
+        }
+
+
+        private void PrepareRenderer()
+        {
+            if (renderMode != DepthCoverageRenderMode.ParticleSystem)
+            {
+                return;
+            }
+
+            particleRenderer ??= new DepthCoverageParticleRenderer();
+            particleRenderer.Configure(transform, settings.maxVoxels, pointSizeMeters, previousSegmentAlpha);
+            particleRenderer.Clear();
+        }
+
+        private void RefreshParticleRendererIfNeeded()
+        {
+            if (renderMode != DepthCoverageRenderMode.ParticleSystem
+                || particleRenderer == null
+                || coveragePointsBuffer == null
+                || voxelOccupancyBuffer == null)
+            {
+                return;
+            }
+
+            particleRenderer.RefreshIfNeeded(
+                coveragePointsBuffer,
+                voxelOccupancyBuffer,
+                currentSegmentId,
+                particleRefreshIntervalSeconds);
+        }
+
+        private void ClearParticles()
+        {
+            particleRenderer?.Stop();
         }
 
         private Material? ResolveMaterial()
@@ -461,6 +529,12 @@ namespace RealityLog.Depth
             voxelKeysBuffer.SetData(keys);
             voxelOccupancyBuffer.SetData(occupancy);
             coveragePointsBuffer.SetData(points);
+
+            if (renderMode == DepthCoverageRenderMode.ParticleSystem)
+            {
+                particleRenderer?.ApplyImmediate(points, occupancy, currentSegmentId);
+            }
+
             Debug.Log($"[{Constants.LOG_TAG}] Editor debug coverage generated {count} points from {editorCoverageSource}.");
         }
 
