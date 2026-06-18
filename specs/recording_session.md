@@ -101,6 +101,7 @@ create session paths
 apply config to modules
 start camera recorders
 start depth exporter
+start optional live feedback overlays
 start pose loggers
 ```
 
@@ -108,6 +109,7 @@ The default stop sequence is:
 
 ```text
 stop pose loggers
+stop optional live feedback overlays
 stop depth exporter
 stop camera recorders
 close cameras when configured
@@ -120,6 +122,8 @@ When camera recording is enabled, each enabled camera side in the active configu
 Depth and pose modules must report start success or failure to the session controller so that session startup does not silently continue after output initialization fails.
 
 Depth frame acquisition should be isolated from depth persistence so that recording diagnostics or live feedback can share the current GPU depth texture without adding another GPU-to-CPU readback path. A depth exporter may depend on a scene-facing depth frame provider, but the exporter remains the owner of raw depth file output and descriptor CSV output.
+
+Live feedback overlays, including coverage and diagnostics, are optional operator aids. Startup failures in these overlays should be logged as warnings and must not fail or stop the recording session.
 
 The session controller should expose a simple scene-facing method:
 

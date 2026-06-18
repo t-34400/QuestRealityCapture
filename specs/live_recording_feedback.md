@@ -128,3 +128,20 @@ The initial implementation samples one configured depth eye, defaults to the lef
 The visualizer must obtain depth textures through `DepthFrameProvider` and must not issue `AsyncGPUReadback` requests.
 
 When coverage visualization stops, feedback-only compute buffers must be released and the visualizer must end its depth provider usage.
+
+---
+
+# Initial Recording Diagnostics Implementation
+
+When `liveFeedback.enabled` and `liveFeedback.diagnostics.enabled` are both true, `RecordingSessionController` may start a recording diagnostics controller after live coverage startup and before pose logging startup.
+
+Recording diagnostics startup failure must be logged as a warning and must not fail or stop the recording session.
+
+The initial diagnostics implementation samples the HMD pose during recording, draws an optional world-space trajectory, places optional event markers at detected discontinuities, and shows an optional operator HUD.
+
+Tracking discontinuity detection is warning-only. It must not stop recording by default.
+
+The initial discontinuity detector may use pose deltas rather than device-native tracking confidence. A new event should be emitted when either the position delta exceeds `positionJumpMeters` or the rotation delta exceeds `rotationJumpDegrees` between monitored HMD samples.
+
+Diagnostics overlays must not add new recording output files and must not change existing camera, depth, or pose persistence formats.
+

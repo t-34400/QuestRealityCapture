@@ -75,6 +75,7 @@
   <Project Path="UnityEditor.UI.csproj" />
   <Project Path="Unity.RenderPipelines.Universal.2D.Editor.Overrides.csproj" />
   <Project Path="Meta.XR.Editor.PlayCompanion.csproj" />
+  <Project Path="RealityLog.Recording.csproj" />
   <Project Path="Meta.XR.Editor.Reflection.csproj" />
   <Project Path="Unity.XR.Hands.Analytics.Editor.csproj" />
   <Project Path="Meta.XR.BuildingBlocks.DepthAPI.Editor.csproj" />
@@ -136,7 +137,6 @@
   <Project Path="Unity.RenderPipeline.Universal.ShaderLibrary.csproj" />
   <Project Path="Meta.XR.RuntimeOptimizer.csproj" />
   <Project Path="Meta.XR.Editor.Callbacks.csproj" />
-  <Project Path="RealityLog.Recording.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Unity.XR.OpenXR.Features.RuntimeDebugger.csproj" />
   <Project Path="UnityEngine.SpatialTracking.csproj" />

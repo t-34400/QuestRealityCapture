@@ -15,6 +15,7 @@ namespace RealityLog.Recording
         [SerializeField] private NativeCameraRecorder[] cameraRecorders = new NativeCameraRecorder[0];
         [SerializeField] private DepthMapExporter? depthExporter = null;
         [SerializeField] private LiveDepthCoverageVisualizer? liveDepthCoverageVisualizer = null;
+        [SerializeField] private RecordingDiagnosticsController? recordingDiagnostics = null;
         [SerializeField] private PoseLogger? poseLogger = null;
         [SerializeField] private PoseLogger[] poseLoggers = new PoseLogger[0];
         [SerializeField] private bool startRecordingOnStart = false;
@@ -28,6 +29,7 @@ namespace RealityLog.Recording
         private RecordingSessionPaths? activePaths;
         private bool depthStarted;
         private bool liveCoverageStarted;
+        private bool diagnosticsStarted;
         private bool recording;
         private float nextRecordingToggleRealtime;
 
@@ -90,6 +92,7 @@ namespace RealityLog.Recording
             }
 
             StartLiveCoverage(activeConfig);
+            StartRecordingDiagnostics(activeConfig);
 
             if (!StartPoseLogger(activeConfig))
             {
@@ -189,6 +192,7 @@ namespace RealityLog.Recording
 
             depthExporter?.ApplyConfiguration(config.depth, paths.Depth);
             liveDepthCoverageVisualizer?.ApplyConfiguration(config.liveFeedback);
+            recordingDiagnostics?.ApplyConfiguration(config.liveFeedback);
             ConfigurePoseLoggers(config.pose, paths.Pose);
         }
 
@@ -294,6 +298,29 @@ namespace RealityLog.Recording
             liveCoverageStarted = true;
         }
 
+
+        private void StartRecordingDiagnostics(RecordingSessionConfig config)
+        {
+            if (!config.liveFeedback.enabled || !config.liveFeedback.diagnostics.enabled)
+            {
+                return;
+            }
+
+            if (recordingDiagnostics == null)
+            {
+                recordingDiagnostics = GetComponent<RecordingDiagnosticsController>() ?? gameObject.AddComponent<RecordingDiagnosticsController>();
+            }
+
+            recordingDiagnostics.ApplyConfiguration(config.liveFeedback);
+            if (!recordingDiagnostics.TryStartDiagnostics())
+            {
+                Debug.LogWarning($"[{Constants.LOG_TAG}] Recording diagnostics failed to start. Recording will continue without diagnostics overlays.");
+                return;
+            }
+
+            diagnosticsStarted = true;
+        }
+
         private bool StartPoseLogger(RecordingSessionConfig config)
         {
             if (!config.pose.enabled)
@@ -330,6 +357,12 @@ namespace RealityLog.Recording
 
             startedPoseLoggers.Clear();
 
+            if (diagnosticsStarted && recordingDiagnostics != null)
+            {
+                recordingDiagnostics.StopDiagnostics();
+                diagnosticsStarted = false;
+            }
+
             if (liveCoverageStarted && liveDepthCoverageVisualizer != null)
             {
                 liveDepthCoverageVisualizer.StopVisualization();
@@ -363,6 +396,7 @@ namespace RealityLog.Recording
             activePaths = null;
             depthStarted = false;
             liveCoverageStarted = false;
+            diagnosticsStarted = false;
         }
 
         private void Start()
