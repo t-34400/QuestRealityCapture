@@ -5,6 +5,9 @@
     "targetSaveFps": 10,
     "preferOpenByCameraId": true,
     "allowJavaMetadataFallback": false,
+    "stereoMode": false,
+    "stereoMaxTimeDeltaSeconds": 0.02,
+    "stereoPairFileName": "stereo_pairs.csv",
     "left": {
       "enabled": true,
       "imageDirectoryName": "left_camera_raw",

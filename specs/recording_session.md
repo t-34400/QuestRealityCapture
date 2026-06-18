@@ -157,6 +157,9 @@ camera.enabled = true
 camera.targetSaveFps = 10
 camera.preferOpenByCameraId = true
 camera.allowJavaMetadataFallback = false
+camera.stereoMode = false
+camera.stereoMaxTimeDeltaSeconds = 0.02
+camera.stereoPairFileName = stereo_pairs.csv
 camera.left.enabled = true
 camera.left.imageDirectoryName = left_camera_raw
 camera.left.metadataFileName = left_camera_characteristics.json
@@ -217,6 +220,9 @@ Supported configuration fields include:
     "targetSaveFps": 10,
     "preferOpenByCameraId": true,
     "allowJavaMetadataFallback": false,
+    "stereoMode": false,
+    "stereoMaxTimeDeltaSeconds": 0.02,
+    "stereoPairFileName": "stereo_pairs.csv",
     "left": {
       "enabled": true,
       "imageDirectoryName": "left_camera_raw",
@@ -278,7 +284,7 @@ Supported configuration fields include:
 
 Live feedback configuration is defined in `live_recording_feedback.md`. The recording session configuration owns deserialization and defaulting of the `liveFeedback` block, but live feedback remains optional and must not change the recording output layout.
 
-`targetSaveFps` values should be interpreted as save-rate throttles. They should not imply that the underlying camera, depth, or tracking systems must change their capture/update rate.
+`targetSaveFps` values should be interpreted as save-rate throttles. They should not imply that the underlying camera, depth, or tracking systems must change their capture/update rate. In native stereo mode, `camera.targetSaveFps` is applied after timestamp pairing and limits saved stereo pairs.
 
 A `targetSaveFps` value of zero means that every eligible update may be saved.
 
@@ -310,8 +316,8 @@ Recording configuration may enable native stereo camera recording with:
 }
 ```
 
-When `camera.stereoMode` is true and both left and right camera sides are enabled, Unity may route camera recording through a single native stereo recorder component instead of two independent native camera recorder components.
+When `camera.stereoMode` is true and both left and right camera sides are enabled, Unity routes camera recording through a single native stereo recorder component instead of two independent native camera recorder components.
 
 `camera.targetSaveFps` applies to saved stereo pairs in stereo mode. `camera.stereoMaxTimeDeltaSeconds` defines the maximum allowed native timestamp difference between paired left and right frames. `camera.stereoPairFileName` names the CSV written at the session root that associates left and right `.yuv` files.
 
-When stereo mode is false, existing independent left/right native camera recorder behavior is preserved.
+When stereo mode is false, existing independent left/right native camera recorder behavior is preserved. The packaged default configuration keeps stereo mode disabled so existing workflows remain unchanged unless the user enables stereo mode in JSON.
