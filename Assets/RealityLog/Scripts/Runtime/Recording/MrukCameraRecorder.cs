@@ -1,12 +1,10 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using Meta.XR;
 using RealityLog.Camera;
-using Unity.Collections;
 using UnityEngine;
 
 namespace RealityLog.Recording
@@ -21,16 +19,12 @@ namespace RealityLog.Recording
 
         private RecordingSessionConfig? config;
         private RecordingSessionPaths? paths;
-        private StreamWriter? leftFrameWriter;
-        private StreamWriter? rightFrameWriter;
-        private StreamWriter? pairWriter;
+        private MrukFrameWriter? frameWriter;
         private readonly CameraRecordingState leftState = new(PassthroughCameraAccess.CameraPositionType.Left, "Left");
         private readonly CameraRecordingState rightState = new(PassthroughCameraAccess.CameraPositionType.Right, "Right");
-        private readonly List<RecordedFrame> leftRecordedFrames = new();
-        private readonly List<RecordedFrame> rightRecordedFrames = new();
         private float nextSampleRealtime;
         private bool recording;
-        private int pairIndex;
+        private bool lastStopSucceeded = true;
 
         public bool IsRecording => recording;
 
@@ -60,28 +54,37 @@ namespace RealityLog.Recording
                 return false;
             }
 
-            EnableConfiguredCameraAccesses();
+            try
+            {
+                Directory.CreateDirectory(paths.RootDirectoryPath);
+                if (leftState.Enabled)
+                {
+                    Directory.CreateDirectory(paths.LeftMrukCamera.ImageDirectoryPath);
+                }
+                if (rightState.Enabled)
+                {
+                    Directory.CreateDirectory(paths.RightMrukCamera.ImageDirectoryPath);
+                }
 
-            Directory.CreateDirectory(paths.RootDirectoryPath);
-            leftFrameWriter = leftState.Enabled
-                ? CreateCsv(paths.LeftMrukCamera.FrameMetadataFilePath, FrameMetadataHeader)
-                : null;
-            rightFrameWriter = rightState.Enabled
-                ? CreateCsv(paths.RightMrukCamera.FrameMetadataFilePath, FrameMetadataHeader)
-                : null;
-            pairWriter = leftState.Enabled && rightState.Enabled
-                ? CreateCsv(paths.MrukStereoPairFilePath, PairMetadataHeader)
-                : null;
-
-            WriteIntrinsics(leftState, paths.LeftMrukCamera.IntrinsicsFilePath);
-            WriteIntrinsics(rightState, paths.RightMrukCamera.IntrinsicsFilePath);
+                EnableConfiguredCameraAccesses();
+                WriteIntrinsics(leftState, paths.LeftMrukCamera.IntrinsicsFilePath);
+                WriteIntrinsics(rightState, paths.RightMrukCamera.IntrinsicsFilePath);
+                frameWriter = new MrukFrameWriter(paths, leftState.Enabled, rightState.Enabled);
+            }
+            catch (Exception ex)
+            {
+                if (stopCameraAccessOnStop)
+                {
+                    StopConfiguredCameraAccesses();
+                }
+                Debug.LogError($"[{Constants.LOG_TAG}] MRUK camera recording could not start: {ex}");
+                return false;
+            }
 
             leftState.ResetRuntimeState();
             rightState.ResetRuntimeState();
-            pairIndex = 0;
-            leftRecordedFrames.Clear();
-            rightRecordedFrames.Clear();
             nextSampleRealtime = 0f;
+            lastStopSucceeded = true;
             recording = true;
             Debug.Log($"[{Constants.LOG_TAG}] MRUK camera recording started: {paths.RootDirectoryPath}");
             return true;
@@ -89,33 +92,63 @@ namespace RealityLog.Recording
 
         public bool StopRecording()
         {
-            if (!recording)
+            if (frameWriter == null)
             {
-                return true;
+                return lastStopSucceeded;
             }
 
-            WriteNearestPairRows();
             recording = false;
-            leftFrameWriter?.Dispose();
-            leftFrameWriter = null;
-            rightFrameWriter?.Dispose();
-            rightFrameWriter = null;
-            pairWriter?.Dispose();
-            pairWriter = null;
-
-            if (stopCameraAccessOnStop)
+            var writer = frameWriter;
+            frameWriter = null;
+            try
             {
-                StopConfiguredCameraAccesses();
+                writer.Complete();
+                lastStopSucceeded = writer.FailedWrites == 0;
+            }
+            catch (Exception ex)
+            {
+                lastStopSucceeded = false;
+                Debug.LogError($"[{Constants.LOG_TAG}] MRUK camera writer could not finish: {ex}");
+            }
+            finally
+            {
+                if (stopCameraAccessOnStop)
+                {
+                    StopConfiguredCameraAccesses();
+                }
             }
 
-            Debug.Log($"[{Constants.LOG_TAG}] MRUK camera recording stopped. LeftFrames={leftState.FrameCount}, RightFrames={rightState.FrameCount}");
-            return true;
+            var summary = $"[{Constants.LOG_TAG}] MRUK camera recording stopped. "
+                + $"LeftFiles={writer.LeftFilesWritten}, RightFiles={writer.RightFilesWritten}, "
+                + $"LeftDropped={leftState.DroppedFrames}, RightDropped={rightState.DroppedFrames}, "
+                + $"FailedWrites={writer.FailedWrites}, PeakOutstanding={writer.PeakOutstandingFrames}";
+            if (!lastStopSucceeded || leftState.DroppedFrames > 0 || rightState.DroppedFrames > 0)
+            {
+                Debug.LogWarning(summary);
+            }
+            else
+            {
+                Debug.Log(summary);
+            }
+            return lastStopSucceeded;
+        }
+
+        private void OnDestroy()
+        {
+            StopRecording();
         }
 
         private void Update()
         {
-            if (!recording || config == null || paths == null)
+            var writer = frameWriter;
+            if (!recording || config == null || writer == null)
             {
+                return;
+            }
+
+            if (writer.HasFailed)
+            {
+                StopRecording();
                 return;
             }
 
@@ -124,16 +157,8 @@ namespace RealityLog.Recording
                 return;
             }
 
-            var leftFrame = SampleCamera(leftState, paths.LeftMrukCamera, leftFrameWriter);
-            var rightFrame = SampleCamera(rightState, paths.RightMrukCamera, rightFrameWriter);
-            if (leftFrame.HasValue)
-            {
-                leftRecordedFrames.Add(leftFrame.Value);
-            }
-            if (rightFrame.HasValue)
-            {
-                rightRecordedFrames.Add(rightFrame.Value);
-            }
+            SampleCamera(leftState, writer);
+            SampleCamera(rightState, writer);
 
             if (maxFramesPerCamera > 0
                 && (!leftState.Enabled || leftState.FrameCount >= maxFramesPerCamera)
@@ -160,34 +185,56 @@ namespace RealityLog.Recording
             return true;
         }
 
-        private RecordedFrame? SampleCamera(
-            CameraRecordingState state,
-            RecordingSessionPaths.MrukCameraPaths cameraPaths,
-            StreamWriter? writer)
+        private void SampleCamera(CameraRecordingState state, MrukFrameWriter writer)
         {
-            if (!state.Enabled || state.Access == null || writer == null)
+            if (!state.Enabled || state.Access == null)
             {
-                return null;
+                return;
             }
 
             if (maxFramesPerCamera > 0 && state.FrameCount >= maxFramesPerCamera)
             {
-                return null;
+                return;
             }
 
             var access = state.Access;
-            var isUpdatedThisFrame = access.IsUpdatedThisFrame;
             if (!access.IsPlaying)
             {
                 state.LogNotPlayingWarning();
-                return null;
+                return;
             }
 
             var timestampUs = ToUnixMicroseconds(access.Timestamp);
             if (timestampUs <= 0 || timestampUs == state.LastTimestampUs)
             {
-                return null;
+                return;
             }
+
+            state.LastTimestampUs = timestampUs;
+            var frame = writer.TryRent(state.Position == PassthroughCameraAccess.CameraPositionType.Left);
+            if (frame == null)
+            {
+                state.DroppedFrames++;
+                return;
+            }
+
+            try
+            {
+                CaptureFrame(state, access, timestampUs, frame);
+            }
+            catch
+            {
+                writer.Return(frame);
+                throw;
+            }
+            writer.Enqueue(frame);
+            state.FrameCount++;
+        }
+
+        private static void CaptureFrame(CameraRecordingState state, PassthroughCameraAccess access,
+            long timestampUs, MrukFrameWriter.PendingFrame frame)
+        {
+            var isUpdatedThisFrame = access.IsUpdatedThisFrame;
             var timestampMs = timestampUs / 1000L;
             var currentResolution = access.CurrentResolution;
             var width = currentResolution.x;
@@ -219,10 +266,9 @@ namespace RealityLog.Recording
                 error = AppendError(error, $"GetTexture failed: {ex.Message}");
             }
 
-            NativeArray<Color32> colors = default;
             try
             {
-                colors = access.GetColors();
+                var colors = access.GetColors();
                 if (colors.IsCreated)
                 {
                     getColorsOk = true;
@@ -231,10 +277,15 @@ namespace RealityLog.Recording
                     rgbaByteCount = expectedPixelCount * 4;
                     if (expectedPixelCount > 0 && colors.Length >= expectedPixelCount)
                     {
+                        if (frame.Pixels.Length != rgbaByteCount)
+                        {
+                            frame.Pixels = new byte[rgbaByteCount];
+                        }
+
+                        // The SDK owns the source buffer. Copy before handing off to the writer.
+                        var bytes = colors.GetSubArray(0, expectedPixelCount).Reinterpret<byte>(4);
+                        bytes.CopyTo(frame.Pixels);
                         fileName = $"{timestampUs}.rgba";
-                        var outputPath = Path.Combine(cameraPaths.ImageDirectoryPath, fileName);
-                        Directory.CreateDirectory(cameraPaths.ImageDirectoryPath);
-                        WriteRgbaFile(outputPath, colors, expectedPixelCount);
                     }
                     else
                     {
@@ -263,12 +314,11 @@ namespace RealityLog.Recording
                 error = AppendError(error, $"GetCameraPose failed: {ex.Message}");
             }
 
-            state.FrameCount++;
-            state.LastTimestampUs = timestampUs;
-            state.LastFrameIndex = state.FrameCount;
-            state.LastFileName = fileName;
-            writer.WriteLine(string.Join(",",
-                state.FrameCount.ToString(CultureInfo.InvariantCulture),
+            frame.Index = state.FrameCount + 1;
+            frame.TimestampUs = timestampUs;
+            frame.Metadata = new[]
+            {
+                frame.Index.ToString(CultureInfo.InvariantCulture),
                 fileName,
                 timestampMs.ToString(CultureInfo.InvariantCulture),
                 timestampUs.ToString(CultureInfo.InvariantCulture),
@@ -293,84 +343,8 @@ namespace RealityLog.Recording
                 rgbaByteCount.ToString(CultureInfo.InvariantCulture),
                 BoolText(getTextureOk),
                 BoolText(getColorsOk),
-                EscapeCsv(error)));
-            writer.Flush();
-            if (string.IsNullOrEmpty(fileName))
-            {
-                return null;
-            }
-
-            return new RecordedFrame(state.LastFrameIndex, state.LastFileName, state.LastTimestampUs);
-        }
-
-        private void WriteNearestPairRows()
-        {
-            if (pairWriter == null || pairIndex > 0)
-            {
-                return;
-            }
-
-            var unpairedLeftFrames = new List<RecordedFrame>(leftRecordedFrames);
-            var unpairedRightFrames = new List<RecordedFrame>(rightRecordedFrames);
-            while (unpairedLeftFrames.Count > 0 && unpairedRightFrames.Count > 0)
-            {
-                FindNearestPair(unpairedLeftFrames, unpairedRightFrames, out var leftIndex, out var rightIndex);
-                var leftFrame = unpairedLeftFrames[leftIndex];
-                var rightFrame = unpairedRightFrames[rightIndex];
-                WritePairRow(leftFrame, rightFrame);
-                unpairedLeftFrames.RemoveAt(leftIndex);
-                unpairedRightFrames.RemoveAt(rightIndex);
-            }
-        }
-
-        private static void FindNearestPair(
-            IReadOnlyList<RecordedFrame> leftFrames,
-            IReadOnlyList<RecordedFrame> rightFrames,
-            out int leftIndex,
-            out int rightIndex)
-        {
-            leftIndex = 0;
-            rightIndex = 0;
-            var bestAbsDeltaUs = long.MaxValue;
-
-            for (var leftCandidate = 0; leftCandidate < leftFrames.Count; ++leftCandidate)
-            {
-                var leftTimestampUs = leftFrames[leftCandidate].TimestampUs;
-                for (var rightCandidate = 0; rightCandidate < rightFrames.Count; ++rightCandidate)
-                {
-                    var deltaUs = rightFrames[rightCandidate].TimestampUs - leftTimestampUs;
-                    var absDeltaUs = deltaUs == long.MinValue ? long.MaxValue : Math.Abs(deltaUs);
-                    if (absDeltaUs >= bestAbsDeltaUs)
-                    {
-                        continue;
-                    }
-
-                    bestAbsDeltaUs = absDeltaUs;
-                    leftIndex = leftCandidate;
-                    rightIndex = rightCandidate;
-                }
-            }
-        }
-
-        private void WritePairRow(RecordedFrame leftFrame, RecordedFrame rightFrame)
-        {
-            if (pairWriter == null)
-            {
-                return;
-            }
-
-            pairIndex++;
-            var deltaUs = rightFrame.TimestampUs - leftFrame.TimestampUs;
-            pairWriter.WriteLine(string.Join(",",
-                pairIndex.ToString(CultureInfo.InvariantCulture),
-                leftFrame.FileName,
-                rightFrame.FileName,
-                leftFrame.TimestampUs.ToString(CultureInfo.InvariantCulture),
-                rightFrame.TimestampUs.ToString(CultureInfo.InvariantCulture),
-                deltaUs.ToString(CultureInfo.InvariantCulture),
-                leftFrame.FrameIndex.ToString(CultureInfo.InvariantCulture),
-                rightFrame.FrameIndex.ToString(CultureInfo.InvariantCulture)));
-            pairWriter.Flush();
+                error
+            };
         }
 
         private bool ResolveCameraAccesses()
@@ -458,31 +432,6 @@ namespace RealityLog.Recording
             File.WriteAllText(filePath, JsonUtility.ToJson(info, prettyPrint: true));
         }
 
-        private static StreamWriter CreateCsv(string path, string header)
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? string.Empty);
-            var writer = new StreamWriter(path, append: false);
-            writer.WriteLine(header);
-            writer.Flush();
-            return writer;
-        }
-
-        private static void WriteRgbaFile(string outputPath, NativeArray<Color32> colors, int pixelCount)
-        {
-            var bytes = new byte[pixelCount * 4];
-            for (var i = 0; i < pixelCount; ++i)
-            {
-                var color = colors[i];
-                var offset = i * 4;
-                bytes[offset] = color.r;
-                bytes[offset + 1] = color.g;
-                bytes[offset + 2] = color.b;
-                bytes[offset + 3] = color.a;
-            }
-
-            File.WriteAllBytes(outputPath, bytes);
-        }
-
         private static long ToUnixMicroseconds(DateTime timestamp)
         {
             return (timestamp.Ticks - DateTime.UnixEpoch.Ticks) / 10L;
@@ -503,37 +452,6 @@ namespace RealityLog.Recording
             return string.IsNullOrEmpty(current) ? next : current + "; " + next;
         }
 
-        private static string EscapeCsv(string value)
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return string.Empty;
-            }
-
-            return '"' + value.Replace("\"", "\"\"") + '"';
-        }
-
-        private const string FrameMetadataHeader =
-            "frame_index,file_name,unix_time_ms,timestamp_us_realtime,width,height,format,camera_position,pose_pos_x,pose_pos_y,pose_pos_z,pose_rot_x,pose_rot_y,pose_rot_z,pose_rot_w,pose_ok,is_playing,is_updated_this_frame,current_resolution_width,current_resolution_height,pixel_count,colors_array_length,rgba_byte_count,get_texture_ok,get_colors_ok,error";
-
-        private const string PairMetadataHeader =
-            "pair_index,left_file_name,right_file_name,left_timestamp_us_realtime,right_timestamp_us_realtime,time_delta_us,left_frame_index,right_frame_index";
-
-
-        private readonly struct RecordedFrame
-        {
-            public RecordedFrame(int frameIndex, string fileName, long timestampUs)
-            {
-                FrameIndex = frameIndex;
-                FileName = fileName;
-                TimestampUs = timestampUs;
-            }
-
-            public int FrameIndex { get; }
-            public string FileName { get; }
-            public long TimestampUs { get; }
-        }
-
         private sealed class CameraRecordingState
         {
             public CameraRecordingState(PassthroughCameraAccess.CameraPositionType position, string cameraName)
@@ -547,17 +465,15 @@ namespace RealityLog.Recording
             public bool Enabled { get; set; }
             public PassthroughCameraAccess? Access { get; set; }
             public int FrameCount { get; set; }
-            public int LastFrameIndex { get; set; }
+            public int DroppedFrames { get; set; }
             public long LastTimestampUs { get; set; }
-            public string LastFileName { get; set; } = string.Empty;
             private float nextNotPlayingWarningRealtime;
 
             public void ResetRuntimeState()
             {
                 FrameCount = 0;
-                LastFrameIndex = 0;
+                DroppedFrames = 0;
                 LastTimestampUs = 0L;
-                LastFileName = string.Empty;
                 nextNotPlayingWarningRealtime = 0f;
             }
 
